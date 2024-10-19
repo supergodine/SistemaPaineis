@@ -1,0 +1,344 @@
+/* Estilos Globais */
+html,
+body {
+    height: 100%;
+    /* Define a altura de 100% para o HTML e o corpo */
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: #343a40;
+    /* Cor de fundo escura */
+    color: #ffffff;
+    /* Texto branco para contraste */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    /* Garante que o corpo ocupe toda a altura da tela */
+    overflow-x: hidden;
+}
+
+main {
+    flex: 1;
+    /* Faz o conteúdo principal ocupar o espaço restante */
+    position: relative;
+    z-index: 0;
+}
+
+.container-fluid {
+    flex-grow: 1;
+    /* Faz o container ocupar todo o espaço disponível */
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    /* Faz o conteúdo principal ocupar o espaço restante */
+}
+
+/* Início Login */
+.login-body {
+    background-color: #343a40;
+    /* Cor de fundo escura */
+    color: #ffffff;
+    /* Texto branco para contraste */
+}
+
+.login-container {
+    max-width: 400px;
+    margin: auto;
+    padding: 30px;
+    background: linear-gradient(to bottom right, #519ae7, #023974);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    margin-top: 100px;
+    opacity: 0;
+    transform: translateX(-100%);
+    animation: slideIn 2s forwards;
+}
+
+@keyframes slideIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Tema Claro */
+.light-theme {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.light-theme .container {
+    background-color: #f8f9fa;
+}
+
+.light-theme .form-control {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.light-theme .btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.light-theme .btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.light-theme .btn-info {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+/* Tema Escuro */
+.dark-theme {
+    background-color: #343a40;
+    color: #ffffff;
+}
+
+.dark-theme .container {
+    background-color: #212529;
+}
+
+.dark-theme .form-control {
+    background-color: #495057;
+    color: #ffffff;
+}
+
+.dark-theme .btn-primary {
+    background-color: #007bff;
+}
+
+.dark-theme .btn-secondary {
+    background-color: #6c757d;
+}
+
+.dark-theme .btn-info {
+    background-color: #17a2b8;
+}
+
+/* Estilos da Tabela */
+.table-responsive {
+    flex-grow: 1;
+    margin-bottom: 20px;
+    background-color: #02254a;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    height: 65vh;
+    overflow-x: hidden;
+    /* Remove a rolagem horizontal */
+    overflow-y: hidden;
+    /*Permite rolagem vertical, se necessário */
+}
+
+
+
+.table {
+    table-layout: fixed;
+    margin: 0 auto;
+    width: 97%;
+    border-collapse: collapse;
+    padding-bottom: 20px;
+}
+
+
+.table th,
+.table td {
+    padding: 0;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.table td {
+    white-space: nowrap;
+    /*Previne quebra de linha */
+    overflow: hidden;
+    /* Esconde o conteúdo que não cabe */
+    text-overflow: ellipsis;
+    /* Exibe três pontos (...) quando o texto é cortado */
+}
+
+.table td:hover {
+    margin: 0.2rem;
+    overflow: visible;
+    /* Permite que o texto apareça ao passar o mouse */
+    /*white-space: normal;           Permite quebra de linha ao passar o mouse */
+    background-color: #f8f9fa;
+    /* muda a cor de fundo ao passar o mouse */
+    /* z-index: 1;                   Garante que o texto fique acima de outros elementos */
+}
+
+
+.table thead th {
+    background-color: #007bff;
+    color: white;
+    text-align: center;
+    white-space: nowrap;
+    /*Previne quebra de linha */
+    overflow: hidden;
+    /* Esconde o conteúdo que não cabe */
+    text-overflow: ellipsis;
+    /* Exibe três pontos (...) quando o texto é cortado */
+    /*overflow: visible;             Permite que o texto apareça ao passar o mouse */
+}
+
+.table tbody td {
+    /*width: 218px;*/
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #e9e9e9;
+    text-align: center;
+}
+
+/* Adicionar Flex ao Container da Tabela */
+.container-fluid {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Estilos do Rodapé */
+footer.footer {
+    padding: 20px;
+    /* Aumente o padding para deixar o rodapé mais espesso */
+    background-color: #2c2c2c;
+    color: white;
+    text-align: center;
+    width: 100%;
+    /* O rodapé ocupa toda a largura da página */
+    margin-top: auto;
+    /* Garante que o footer fique no final da página */
+    z-index: 0;
+    /* O rodapé tem um z-index menor, permitindo que os cards o sobrescrevam */
+}
+
+/* Container do Dashboard */
+.dashboard-container {
+    position: relative;
+    /* Permite que os cards usem posicionamento absoluto dentro deste contêiner */
+    width: 100%;
+    height: auto;
+    /* Ajusta a altura automaticamente */
+    overflow: hidden;
+    /* Impede que os cards saiam da área visível do container */
+}
+
+/* Cards do Dashboard */
+.dashboard-card {
+    color: #000;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+    margin: 10px;
+    cursor: move;
+    box-sizing: border-box;
+    overflow: hidden;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+.card-body{
+    padding: 5px 10px;
+}
+
+/* Texto do Card */
+.dashboard-card h5 {
+    font-size: 15px;
+    margin: 0;
+    /* Remove margens para evitar transbordamento */
+    /* overflow: hidden; Oculta o texto que não cabe no card */
+    text-overflow: ellipsis;
+    /* Exibe reticências se o texto for muito longo */
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    /* Limita o texto a 4 linhas */
+    display: -webkit-box;
+    /* Suporte para quebra de texto em várias linhas */
+}
+
+
+
+/* Estilos dos Cards das Legendagens */
+.legenda-card {
+    color: #000;
+    padding: 0;
+    margin: 0;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    /* Inclui padding e borda no tamanho total */
+    overflow: hidden;
+    /* Impede que o conteúdo transborde */
+    cursor: move;
+    /* Mostra que o card pode ser arrastado */
+    z-index: 1;
+    /* Z-index maior para que os cards possam sobrescrever o rodapé */
+    min-height: 30px;
+}
+
+/* Texto do Card de Legenda */
+.legenda-card h5 {
+    font-size: 15px;
+    margin: 0;
+    /* Remove margens para evitar transbordamento */
+    /* overflow: hidden; Oculta o texto que não cabe no card */
+    text-overflow: ellipsis;
+    /* Exibe reticências se o texto for muito longo */
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    /* Limita o texto a 4 linhas */
+    display: -webkit-box;
+    /* Suporte para quebra de texto em várias linhas */
+}
+
+
+
+.btn-outline-none {
+    border: none;
+    background: none;
+    /* Remove o fundo */
+    cursor: pointer;
+}
+
+.btn-cel {
+    width: 150px;
+    white-space: nowrap;
+    /* Previne quebra de linha */
+    display: flex;
+    /* Organiza os ícones horizontalmente */
+    align-items: center;
+    /* Centraliza os ícones verticalmente */
+    gap: 5px;
+    /* Espaço entre os ícones */
+}
+
+.btn-sm {
+    margin: 0 2px;
+    /* Pequeno espaçamento entre os botões */
+}
+
+.lin-num {
+    width: 100px;
+}
+
+.lin-atu {
+    width: 100px;
+}
+
+.lin-rol {
+    width: 100px;
+}
+
+.lin-obs {
+    width: 1000px;
+}
+
+.lin-nome {
+    width: 300px;
+}

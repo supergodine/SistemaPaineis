@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Painéis</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> 
+
+
+</head>
+
+<body>
+    <div class="listar-paineis">
+        <div class="bg-ligh">
+            <div class="row align-items-center mb-3">
+                <div class="logo">
+                <!--  <img src="{{ url_for('static', filename='/imagens/logo.png') }}" alt="Logo"> -->
+                </div>
+                <div class="col">
+                    <h2 class="mt-5" style="text-align: center;">Lista de Painéis</h2>
+                    <div class="text-right" style="margin: 1rem;">
+                        <button id="themeToggle" class="btn btn-secondary">Alternar Tema</button>
+                        <a href="/cadastrar_painel" class="btn btn-primary">Novo painel</a>
+                    </div>
+                    <!-- Campo de Pesquisa -->
+                    <div class="mb-3">
+                        <input type="text" id="searchInput" class="form-control m-auto" style="width: 97%;"
+                            placeholder="Pesquisar por nome ou sequência">
+                    </div>
+                    
+                    <table class="table table-striped w-90">
+                        <thead>
+                            <tr>
+                                <th class="lin-num" style="width: 15%;">#</th>
+                                <th class="lin-nome" style="width: 90%;">Nome</th>
+                                <th class="lin-obs" style="width: 130%;">Observação</th>
+                                <th class="lin-atu" style="width: 23%;">Seg/Atual</th>
+                                <th class="lin-rol" style="width: 23%;">Seg/Rol</th>
+                                <th class="lin-aco" style="width: 45%;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="painelTableBody">
+                            {% if paineis %}
+                            {% for painel in paineis %}
+                            <tr>
+                                <td>{{ painel[0] }}</td>
+                                <td>{{ painel[1] }}</td>
+                                <td>{{ painel[2] }}</td>
+                                <td>{{ painel[3] }}</td>
+                                <td>{{ painel[4] }}</td>
+                                <td class="btn-cel" style="width: 100%;">
+                                    <a href="{{ url_for('visualizar_painel', painel_id=painel[0]) }}"
+                                        class="btn btn-sm btn-outline-none" title="Visualizar">
+                                        <i class="fas fa-eye" style="color: rgb(0, 197, 0)"></i>
+                                    </a>
+                                    <a href="{{ url_for('editar_painel', painel_id=painel[0]) }}"
+                                        class="btn btn-sm btn-outline-none" title="Editar">
+                                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
+                                    </a>
+                                    <form action="{{ url_for('excluir_painel', painel_id=painel[0]) }}" method="post"
+                                        style="display:inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-none" title="Excluir"
+                                            onclick="return confirm('Tem certeza que deseja excluir este painel?');">
+                                            <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
+                                        </button>
+                                    </form>
+                                    <a href="{{ url_for('duplicar_painel', painel_id=painel[0]) }}"
+                                        class="btn btn-sm btn-outline-none" title="Duplicar">
+                                        <i class="fas fa-copy" style="color: rgb(236, 161, 0)"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">Nenhum painel cadastrado.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!--  jQuery e Bootstrap -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
