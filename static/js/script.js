@@ -13,7 +13,10 @@ $(document).ready(function () {
         localStorage.setItem('theme', $('body').hasClass('dark-theme') ? 'dark' : 'light');
     });
 
-    // Abertura do modal para nova coluna
+
+
+
+   // Abertura do modal para nova coluna
 $('#novaColunaBtn').on('click', function () {
     editando = false;
     $('#addColumnModal').modal('show');
@@ -21,14 +24,18 @@ $('#novaColunaBtn').on('click', function () {
     $('#duplicateColumn').hide(); // Esconde o botão de duplicar no modo de adicionar
 });
 
-// Função para salvar coluna (adicionar ou editar)
-$('#saveColumn').on('click', function () {
+// Adicionar coluna
+$('#addColumnForm').on('submit', function (e) {
+    e.preventDefault();  // Evita que o formulário seja submetido da maneira tradicional
+
     var form = $('#addColumnForm')[0];
     var formData = new FormData(form);
-    formData.append('painel_id', painelId); // Adiciona o painel_id ao formData
 
-    // Define a URL com base no modo (adicionar ou editar)
-    var url = editando ? '/edit_column/' + $('#coluna_id').val() : '/adicionar_coluna/' + painelId;
+    // Não precisa adicionar painel_id via JavaScript se ele já está no formulário como campo hidden
+    // formData.append('painel_id', painelId); 
+
+    // Definindo a URL correta para adicionar ou editar
+    var url = editando ? '/edit_column/' + $('#coluna_id').val() : '/adicionar_coluna/' + $('input[name="painel_id"]').val();
 
     fetch(url, {
         method: 'POST',
@@ -39,7 +46,7 @@ $('#saveColumn').on('click', function () {
         if (data.success) {
             $('#addColumnModal').modal('hide');
             alert('Coluna salva com sucesso!');
-            location.reload(); // Recarrega a página para mostrar a nova coluna
+            location.reload();  // Recarrega a página para refletir a nova coluna
         } else {
             alert('Erro ao salvar a coluna: ' + data.error);
         }
@@ -49,22 +56,68 @@ $('#saveColumn').on('click', function () {
         alert('Erro na comunicação com o servidor.');
     });
 });
-
-// Função para editar uma coluna
+/// Função para editar uma coluna
 window.editarColuna = function (id, titulo, atributo, classe, escondido, tamanho, numeroApre) {
+    console.log("Editando coluna com ID:", id); // Debug para ver o ID da coluna sendo editada
     editando = true; // Define o modo de edição
+
     $('#coluna_id').val(id); // Preenche o ID da coluna
+    console.log("ID da coluna preenchido:", id); // Debug para ver o ID preenchido
+
     $('#titulo_coluna').val(titulo); // Preenche o título da coluna
+    console.log("Título da coluna preenchido:", titulo); // Debug para ver o título preenchido
+
     $('#atributo_coluna').val(atributo); // Preenche o atributo
+    console.log("Atributo da coluna preenchido:", atributo); // Debug para ver o atributo preenchido
+
     $('#classe_coluna').val(classe); // Preenche a classe
+    console.log("Classe da coluna preenchida:", classe); // Debug para ver a classe preenchida
+
     $('#escondido_coluna').prop('checked', (escondido === 'H')); // Marca se a coluna está escondida
+    console.log("Coluna escondida marcada:", escondido === 'H'); // Debug para ver se está escondida
+
     $('#tamanho_coluna').val(tamanho); // Preenche o tamanho
+    console.log("Tamanho da coluna preenchido:", tamanho); // Debug para ver o tamanho preenchido
+
     $('#numero_apre_coluna').val(numeroApre); // Preenche o número de aparições
+    console.log("Número de aparições preenchido:", numeroApre); // Debug para ver o número de aparições preenchido
 
     $('#addColumnModal').modal('show'); // Abre o modal para edição
     $('#duplicateColumn').show(); // Mostra o botão de duplicar quando em modo de edição
+    console.log("Modal de edição aberto."); // Debug para confirmar que o modal foi aberto
 };
 
+// Função para salvar as alterações ao clicar no botão de salvar
+$('#saveChangesButton').on('click', function() {
+    // Coleta os dados do modal para envio
+    let formData = {
+        nr_sequencia: $('#coluna_id').val(),
+        titulo_coluna: $('#titulo_coluna').val(),
+        atributo_coluna: $('#atributo_coluna').val(),
+        classe_coluna: $('#classe_coluna').val(),
+        escondido_coluna: $('#escondido_coluna').is(':checked') ? 'H' : null,
+        tamanho_coluna: $('#tamanho_coluna').val(),
+        numero_apre_coluna: $('#numero_apre_coluna').val(),
+    };
+
+    // Envia os dados via AJAX para a rota edit_column
+    $.ajax({
+        url: '/edit_column',
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.success) {
+                alert('Coluna editada com sucesso');
+                // Aqui você pode atualizar a interface ou recarregar a página para refletir as mudanças
+            } else {
+                alert('Erro ao editar coluna: ' + response.error);
+            }
+        },
+        error: function(error) {
+            console.error('Erro na comunicação com o servidor', error);
+        }
+    });
+});
 
     // Função para excluir uma coluna
     window.excluirColuna = function (id) {
@@ -357,6 +410,233 @@ function renderizarTabela(dadosColunas) {
     });
 }
 
+// Funções para duplicar cadastros adicionais
+// colunas
+function duplicarColuna(titulo, atributo, classe, escondido, tamanho, numero_apre) {
+    // Adiciona "Cópia de" ao título
+    document.getElementById('titulo_coluna').value = "Cópia de " + titulo;
+    document.getElementById('atributo_coluna').value = atributo;
+    document.getElementById('classe_coluna').value = classe;
+    document.getElementById('tamanho_coluna').value = tamanho;
+    document.getElementById('numero_apre_coluna').value = numero_apre;
+
+    // Define o checkbox de 'escondido' com base no valor booleano recebido
+    document.getElementById('escondido_coluna').checked = escondido === 'H';
+
+    // Exibe o modal de adição de coluna
+    $('#addColumnModal').modal('show');
+}
+
+// dashboard
+function duplicarDashboard(titulo, sql, cor) {
+    // Adiciona "Cópia de" ao título
+    document.getElementById('titulo_dashboard').value = "Cópia de " + titulo;
+    document.getElementById('sql_dashboard').value = sql;
+    document.getElementById('cor_dashboard').value = cor;
+
+    // Exibe o modal de adição de dashboard
+    $('#addDashboardModal').modal('show');
+}
+
+// legendas
+function duplicarLegenda(titulo, cor, numero_apre) {
+    // Adiciona "Cópia de" ao título
+    document.getElementById('titulo_legenda').value = "Cópia de " + titulo;
+    document.getElementById('cor_legenda').value = cor;
+    document.getElementById('numero_apre_legenda').value = numero_apre;
+
+    // Exibe o modal de adição de legenda
+    $('#addLegendModal').modal('show');
+}
+
+// regras
+function duplicarRegra(valor, icone, classe, substituicao, cor, coluna, celula_linha) {
+    // Adiciona "Cópia de" ao valor
+    document.getElementById('valor_regra').value = "Cópia de " + valor;
+    document.getElementById('icone_regra').value = icone;
+    document.getElementById('classe_regra').value = classe;
+    document.getElementById('substituicao_regra').value = substituicao;
+    document.getElementById('cor_regra').value = cor;
+    document.getElementById('coluna_regra').value = coluna;
+    document.getElementById('celula_linha_regra').value = celula_linha;
+
+    // Exibe o modal de adição de regra
+    $('#addRuleModal').modal('show');
+}
+
+let editandoDashboard = false;
+let editandoLegenda = false;
+let editandoRegra = false;
+
+// Função para abrir o modal para adicionar um novo dashboard
+function abrirModalAdicionarDashboard() {
+    editandoDashboard = false; // Define que estamos adicionando
+    $('#dashboard_id').val(''); // Limpa o campo de ID
+    $('#titulo_dashboard').val(''); // Limpa o campo de título
+    $('#sql_dashboard').val(''); // Limpa o campo SQL
+    $('#cor_dashboard').val('#000000'); // Reseta a cor
+    $('#addDashboardModal').modal('show'); // Mostra o modal
+}
+
+// Função para abrir o modal para editar um dashboard existente
+function editarDashboard(id, titulo, sql, cor) {
+    editandoDashboard = true; // Define que estamos editando
+    $('#dashboard_id').val(id); // Preenche o ID
+    $('#titulo_dashboard').val(titulo); // Preenche o título
+    $('#sql_dashboard').val(sql); // Preenche o SQL
+    $('#cor_dashboard').val(cor); // Preenche a cor
+    $('#addDashboardModal').modal('show'); // Mostra o modal
+}
+
+// Função para abrir o modal para adicionar uma nova legenda
+function abrirModalAdicionarLegenda() {
+    editandoLegenda = false; // Define que estamos adicionando
+    $('#legenda_id').val(''); // Limpa o campo de ID
+    $('#titulo_legenda').val(''); // Limpa o campo de título
+    $('#cor_legenda').val('#000000'); // Reseta a cor
+    $('#numero_apre_legenda').val(''); // Limpa o campo de número de aparições
+    $('#addLegendModal').modal('show'); // Mostra o modal
+}
+
+// Função para abrir o modal para editar uma legenda existente
+function editarLegenda(id, titulo, cor, numeroApre) {
+    editandoLegenda = true; // Define que estamos editando
+    $('#legenda_id').val(id); // Preenche o ID
+    $('#titulo_legenda').val(titulo); // Preenche o título
+    $('#cor_legenda').val(cor); // Preenche a cor
+    $('#numero_apre_legenda').val(numeroApre); // Preenche o número de aparições
+    $('#addLegendModal').modal('show'); // Mostra o modal
+}
+
+// Função para abrir o modal para adicionar uma nova regra
+function abrirModalAdicionarRegra() {
+    editandoRegra = false; // Define que estamos adicionando
+    $('#regra_id').val(''); // Limpa o campo de ID
+    $('#valor_regra').val(''); // Limpa o campo de valor
+    $('#icone_regra').val(''); // Limpa o campo de ícone
+    $('#classe_regra').val(''); // Limpa o campo de classe
+    $('#substituicao_regra').val(''); // Limpa o campo de substituição
+    $('#cor_regra').val('#000000'); // Reseta a cor
+    $('#coluna_regra').val(''); // Limpa o campo de coluna
+    $('#celula_linha_regra').val(''); // Limpa o campo de célula/linha
+    $('#addRuleModal').modal('show'); // Mostra o modal
+}
+
+// Função para abrir o modal para editar uma regra existente
+function editarRegra(id, valor, icone, classe, substituicao, cor, coluna, celula) {
+    editandoRegra = true; // Define que estamos editando
+    $('#regra_id').val(id); // Preenche o ID
+    $('#valor_regra').val(valor); // Preenche o valor
+    $('#icone_regra').val(icone); // Preenche o ícone
+    $('#classe_regra').val(classe); // Preenche a classe
+    $('#substituicao_regra').val(substituicao); // Preenche a substituição
+    $('#cor_regra').val(cor); // Preenche a cor
+    $('#coluna_regra').val(coluna); // Preenche a coluna
+    $('#celula_linha_regra').val(celula); // Preenche a célula/linha
+    $('#addRuleModal').modal('show'); // Mostra o modal
+}
 
 
 
+
+// Função para salvar as alterações de Dashboard
+
+// Função para salvar o dashboard ao clicar no botão "Salvar"
+$('#saveDashboardButton').on('click', function(event) {
+    event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
+    
+    let formData = {
+        dashboard_id: $('#dashboard_id').val(),
+        titulo_dashboard: $('#titulo_dashboard').val(),
+        sql_dashboard: $('#sql_dashboard').val(),
+        cor_dashboard: $('#cor_dashboard').val(),
+        painel_id: $('input[name="painel_id"]').val()
+    };
+
+    // Defina a URL de acordo com o modo de edição ou adição
+    let url = formData.dashboard_id ? '/edit_dashboard' : '/cadastrar_dashboard'; 
+
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.success) {
+                alert('Dashboard salvo com sucesso!');
+                location.reload();  // Recarrega a página para refletir as mudanças
+            } else {
+                alert('Erro: ' + response.error);
+            }
+        },
+        error: function(error) {
+            console.error('Erro na comunicação com o servidor:', error);
+            alert('Erro ao salvar o dashboard.');
+        }
+    });
+});
+
+
+
+
+
+// Função para salvar as alterações de Legenda
+$('#saveLegendButton').on('click', function() {
+    let formData = {
+        legenda_id: $('#legenda_id').val(),
+        titulo_legenda: $('#titulo_legenda').val(),
+        cor_legenda: $('#cor_legenda').val(),
+        numero_apre_legenda: $('#numero_apre_legenda').val(),
+    };
+
+    let url = editandoLegenda ? '/edit_legenda' : '/add_legenda'; // Ajuste as rotas conforme necessário
+
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.success) {
+                alert('Operação realizada com sucesso');
+                // Atualize a interface ou recarregue os dados conforme necessário
+            } else {
+                alert('Erro: ' + response.error);
+            }
+        },
+        error: function(error) {
+            console.error('Erro na comunicação com o servidor', error);
+        }
+    });
+});
+
+// Função para salvar as alterações de Regra
+$('#saveRuleButton').on('click', function() {
+    let formData = {
+        regra_id: $('#regra_id').val(),
+        valor_regra: $('#valor_regra').val(),
+        icone_regra: $('#icone_regra').val(),
+        classe_regra: $('#classe_regra').val(),
+        substituicao_regra: $('#substituicao_regra').val(),
+        cor_regra: $('#cor_regra').val(),
+        coluna_regra: $('#coluna_regra').val(),
+        celula_linha_regra: $('#celula_linha_regra').val(),
+    };
+
+    let url = editandoRegra ? '/edit_regra' : '/add_regra'; // Ajuste as rotas conforme necessário
+
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.success) {
+                alert('Operação realizada com sucesso');
+                // Atualize a interface ou recarregue os dados conforme necessário
+            } else {
+                alert('Erro: ' + response.error);
+            }
+        },
+        error: function(error) {
+            console.error('Erro na comunicação com o servidor', error);
+        }
+    });
+});
