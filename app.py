@@ -534,7 +534,7 @@ def duplicar_painel(painel_id):
     finally:
         cursor.close()
         connection.close()
-
+# Adiciona coluna
 @app.route('/adicionar_coluna/<int:painel_id>', methods=['POST'])
 def configurar_colunas(painel_id):
     with get_db_connection() as connection:
@@ -654,85 +654,110 @@ from datetime import datetime
 # Rota para cadastrar dashboard
 @app.route('/cadastrar_dashboard', methods=['POST'])
 def cadastrar_dashboard():
-    if request.method == 'POST':
+    painel_id = request.form.get('painel_id')  # Obtenha o ID do painel do formulário
+
+    # Verificar se o painel existe
+    with get_db_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute("SELECT ds_sql FROM hp_painel WHERE nr_sequencia = :painel_id", {'painel_id': painel_id})
+        painel = cursor.fetchone()
+
+        if not painel:
+            return jsonify({'success': False, 'error': 'Painel não encontrado'}), 404
+
+        # Captura os dados do formulário
+        titulo_dashboard = request.form.get('titulo_dashboard')
+        sql_dashboard = request.form.get('sql_dashboard')
+        cor_dashboard = request.form.get('cor_dashboard')
+
+        # Verificar se os campos obrigatórios estão preenchidos
+        if not titulo_dashboard or not sql_dashboard:
+            return jsonify({'success': False, 'error': 'Preencha todos os campos obrigatórios'}), 400
+
         try:
-            # Debug: Inicio do processo de cadastro
-            print("Iniciando cadastro do dashboard...")
-            
-            titulo_dashboard = request.form['titulo_dashboard']
-            descricao_dashboard = request.form['descricao_dashboard']
-            sql_dashboard = request.form['sql_dashboard']
-            cor_fundo = request.form['cor_fundo']
-            dt_atualizacao = datetime.now()
-            dt_criacao = datetime.now()
-            usuario_atualizacao = 'DMMSANTOS'  
-            usuario_criacao = 'DMMSANTOS'  
-            painel_id = request.form.get('painel_id')  # Pegando o ID do painel do formulário
+            # Gerar um novo ID para o dashboard
+            cursor.execute("SELECT DASHBOARD_SEQ.NEXTVAL FROM dual")
+            dashboard_id = cursor.fetchone()[0]
+            print("Nova ID do dashboard:", dashboard_id)  # Debug: imprimir o ID gerado
 
-            print(f"Dados recebidos - Título: {titulo_dashboard}, Descrição: {descricao_dashboard}, SQL: {sql_dashboard}, Cor: {cor_fundo}, Painel ID: {painel_id}")
+            # Inserir novo dashboard no banco de dados
+            cursor.execute("""
+                INSERT INTO hp_painel_dashboard 
+                (nr_sequencia, ds_titulo, ds_sql, ds_cor, fk_nr_seq_painel, dt_criacao, dt_atualizacao, nm_usuario_criacao, nm_usuario_atualizacao)
+                VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9)
+            """, (
+                dashboard_id, 
+                titulo_dashboard, 
+                sql_dashboard, 
+                cor_dashboard, 
+                painel_id, 
+                datetime.now(), 
+                datetime.now(), 
+                "DMMSANTOS",  # Substitua pelo usuário atual se necessário
+                "DMMSANTOS"   # Substitua pelo usuário atual se necessário
+            ))
 
-            with get_db_connection() as connection:
-                cursor = connection.cursor()
+            connection.commit()
 
-                # Obtendo o próximo número da sequência
-                cursor.execute("SELECT DASHBOARD_SEQ.NEXTVAL FROM dual")
-                nr_sequencia = cursor.fetchone()[0]
-                print(f"Próximo número da sequência obtido: {nr_sequencia}")
-
-                # Executando o INSERT com todas as variáveis
-                cursor.execute(""" 
-                    INSERT INTO hp_painel_dashboard (nr_sequencia, ds_titulo, ds_descricao, ds_sql, ds_cor, dt_atualizacao, dt_criacao, nm_usuario_atualizacao, nm_usuario_criacao, fk_nr_seq_painel) 
-                    VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10) 
-                """, (nr_sequencia, titulo_dashboard, descricao_dashboard, sql_dashboard, cor_fundo, dt_atualizacao, dt_criacao, usuario_atualizacao, usuario_criacao, painel_id))
-                connection.commit()
-                print("Dashboard inserido com sucesso no banco de dados.")
-
-                # Executar a consulta SQL armazenada no dashboard
-                print(f"Executando consulta SQL do dashboard: {sql_dashboard}")
-                cursor.execute(sql_dashboard)
-                consulta_resultado = cursor.fetchone()  # Obtendo o único resultado da consulta
-                print(f"Resultado da consulta: {consulta_resultado}")
-
-                # Obter todos os dashboards após o cadastro
-                cursor.execute('SELECT * FROM hp_painel_dashboard')
-                dashboards = cursor.fetchall()
-                print(f"Dashboards obtidos: {dashboards}")
-
-                flash('Dashboard cadastrado com sucesso!')
-                return render_template('visualizar_dashboard.html', resultados=dashboards, cor_fundo=cor_fundo, dashboards=dashboards, consulta_resultado=consulta_resultado)
+            # Retornar sucesso e os dados do novo dashboard para serem atualizados no frontend
+            return jsonify({
+                'success': True,
+                'dashboard_id': dashboard_id,
+                'titulo_dashboard': titulo_dashboard,
+                'sql_dashboard': sql_dashboard,
+                'cor_dashboard': cor_dashboard
+            }), 200
 
         except Exception as e:
-            # Debug: Exceção capturada
-            print(f"Erro durante o cadastro do dashboard: {e}")
-            flash('Ocorreu um erro ao cadastrar o dashboard.')
-
-    return redirect(url_for('listar_dashboards'))  # Em caso de erro, redireciona para a lista
+            connection.rollback()
+            print(f"Erro ao inserir o dashboard: {str(e)}")  # Debug: imprimir erro
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 
 
-# Editar Dashboard
-@app.route('/editar_dashboard/<int:dashboard_id>', methods=['GET', 'POST'])
+@app.route('/editar_dashboard/<int:dashboard_id>', methods=['POST'])
 def editar_dashboard(dashboard_id):
     with get_db_connection() as connection:
         cursor = connection.cursor()
-        
-        if request.method == 'POST':
-            titulo_dashboard = request.form['titulo_dashboard']
-            descricao_dashboard = request.form['descricao_dashboard']
-            
+
+        # Captura os dados do formulário enviados via modal
+        titulo_dashboard = request.form.get('titulo_dashboard')
+        sql_dashboard = request.form.get('sql_dashboard')
+        cor_dashboard = request.form.get('cor_dashboard')
+
+        # Verificar se os campos obrigatórios estão preenchidos
+        if not titulo_dashboard or not sql_dashboard:
+            return jsonify({'success': False, 'error': 'Preencha todos os campos obrigatórios'}), 400
+
+        try:
+            # Atualizar o dashboard no banco de dados
             cursor.execute("""
                 UPDATE hp_painel_dashboard
-                SET ds_titulo = :1, ds_descricao = :2
-                WHERE nr_sequencia = :3
-            """, (titulo_dashboard, descricao_dashboard, dashboard_id))
+                SET ds_titulo = :1, ds_sql = :2, ds_cor = :3, dt_atualizacao = :4
+                WHERE nr_sequencia = :5
+            """, (
+                titulo_dashboard, 
+                sql_dashboard, 
+                cor_dashboard, 
+                datetime.now(), 
+                dashboard_id
+            ))
             connection.commit()
-            flash('Dashboard atualizado com sucesso!')
-            return redirect(url_for('listar_dashboards'))
-        
-        cursor.execute('SELECT * FROM hp_painel_dashboard WHERE nr_sequencia = :1', (dashboard_id,))
-        dashboard = cursor.fetchone()
-        return render_template('editar_dashboard.html', dashboard=dashboard)
+
+            # Retornar sucesso e os dados do dashboard atualizado para serem refletidos no frontend
+            return jsonify({
+                'success': True,
+                'dashboard_id': dashboard_id,
+                'titulo_dashboard': titulo_dashboard,
+                'sql_dashboard': sql_dashboard,
+                'cor_dashboard': cor_dashboard
+            }), 200
+
+        except Exception as e:
+            connection.rollback()
+            print(f"Erro ao atualizar o dashboard: {str(e)}")  # Debug: imprimir erro
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 
@@ -754,24 +779,69 @@ def listar_legendas():
         cursor.execute('SELECT * FROM hp_painel_legenda')
         legendas = cursor.fetchall()
         return render_template('listar_legendas.html', legendas=legendas)
-
-# Cadastrar Legenda
-@app.route('/cadastrar_legenda', methods=['GET', 'POST'])
-def cadastrar_legenda():
-    if request.method == 'POST':
-        descricao_legenda = request.form['descricao_legenda']
-        
-        with get_db_connection() as connection:
-            cursor = connection.cursor()
-            cursor.execute("""
-                INSERT INTO hp_painel_legenda (ds_legenda)
-                VALUES (:1)
-            """, (descricao_legenda,))
-            connection.commit()
-            flash('Legenda cadastrada com sucesso!')
-            return redirect(url_for('listar_legendas'))
     
-    return render_template('cadastrar_legenda.html')
+ #cadastrar legendas
+
+@app.route('/cadastrar_legenda', methods=['POST'])
+def cadastrar_legenda():
+    descricao_legenda = request.form.get('descricao_legenda')
+    cor_legenda = request.form.get('cor_legenda')  # Supondo que você tenha um campo para a cor da legenda
+    painel_id = request.form.get('painel_id')  # Supondo que você tenha um campo oculto para o ID do painel
+
+    # Verificar se os campos obrigatórios estão preenchidos
+    if not descricao_legenda or not cor_legenda or not painel_id:
+        return jsonify({'success': False, 'error': 'Preencha todos os campos obrigatórios'}), 400
+
+    with get_db_connection() as connection:
+        cursor = connection.cursor()
+
+        try:
+            # Gerar um novo ID para a legenda
+            cursor.execute("SELECT LEGENDA_SEQ.NEXTVAL FROM dual")
+            legenda_id = cursor.fetchone()[0]
+
+            # Inserir nova legenda no banco de dados
+            cursor.execute("""
+                INSERT INTO hp_painel_legenda (
+                    NR_SEQUENCIA,
+                    DS_COR,
+                    DS_LEGENDA,
+                    DT_CRIACAO,
+                    DT_ATUALIZACAO,
+                    NM_USUARIO_CRIACAO,
+                    NM_USUARIO_ATUALIZACAO,
+                    NR_SEQ_APRESENTACAO,
+                    IE_SITUACAO,
+                    FK_NR_SEQ_PAINEL
+                )
+                VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)
+            """, (
+                legenda_id,
+                cor_legenda,
+                descricao_legenda,
+                datetime.now(),
+                datetime.now(),
+                "DMMSANTOS",  # Nome do usuário que está criando
+                "DMMSANTOS",  # Nome do usuário que está atualizando
+                1,            # Exemplo de NR_SEQ_APRESENTACAO
+                'A',          # Estado inicial da legenda
+                painel_id
+            ))
+
+            connection.commit()
+
+            return jsonify({
+                'success': True,
+                'legenda_id': legenda_id,
+                'descricao_legenda': descricao_legenda,
+                'cor_legenda': cor_legenda
+            }), 200
+
+        except Exception as e:
+            connection.rollback()
+            print(f"Erro ao inserir a legenda: {str(e)}")  # Debug: imprimir erro
+            return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # Editar Legenda
 @app.route('/editar_legenda/<int:legenda_id>', methods=['GET', 'POST'])
@@ -815,23 +885,58 @@ def listar_regras_cor():
         return render_template('listar_regras_cor.html', regras=regras)
 
 # Cadastrar Regra de Cor
-@app.route('/cadastrar_regra_cor', methods=['GET', 'POST'])
+@app.route('/cadastrar_regra_cor', methods=['POST'])
 def cadastrar_regra_cor():
     if request.method == 'POST':
-        descricao_regra = request.form['descricao_regra']
+        descricao_regra = request.form['valor_regra']
         cor_regra = request.form['cor_regra']
-        
+        icone_regra = request.form['icone_regra']
+        classe_regra = request.form['classe_regra']
+        substituicao_regra = request.form.get('substituicao_regra', 'N')  # Pega 'N' se não estiver marcado
+        coluna_id = request.form['coluna_regra']
+        celula_linha_regra = request.form['celula_linha_regra']
+        usuario_logado = session.get('username')  # Nome do usuário logado
+
         with get_db_connection() as connection:
             cursor = connection.cursor()
+            # Gerar novo ID da regra de cor
+            cursor.execute("SELECT REGRA_SEQ.NEXTVAL FROM dual")
+            regra_id = cursor.fetchone()[0]
+            
             cursor.execute("""
-                INSERT INTO hp_painel_regra_cor (ds_regra, ds_cor)
-                VALUES (:1, :2)
-            """, (descricao_regra, cor_regra))
+                INSERT INTO hp_painel_regra_cor (NR_SEQUENCIA,
+                                                  DS_COR,
+                                                  DT_ATUALIZACAO,
+                                                  DT_CRIACAO,
+                                                  NM_ICON,
+                                                  IE_CELULA_LINHA,
+                                                  NM_USUARIO_ATUALIZACAO,
+                                                  NM_USUARIO_CRIACAO,
+                                                  IE_ICON_REPLACE,
+                                                  IE_SITUACAO,
+                                                  DS_VALOR,
+                                                  FK_NR_SEQ_PAINEL_COLUNA,
+                                                  NM_CLASS)
+                VALUES (:1, :2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, :3, :4, :5, :5, :6, 'A', :7, :8, :9)
+            """, (regra_id, cor_regra, icone_regra, celula_linha_regra, usuario_logado, substituicao_regra, descricao_regra, coluna_id, classe_regra))
             connection.commit()
-            flash('Regra de cor cadastrada com sucesso!')
-            return redirect(url_for('listar_regras_cor'))
+            return jsonify({'success': True, 'message': 'Regra de cor cadastrada com sucesso!'})
     
-    return render_template('cadastrar_regra_cor.html')
+    return jsonify({'success': False, 'message': 'Erro ao cadastrar regra de cor.'})
+
+# Rota para listar as colunas no modal da regra
+@app.route('/listar_colunas_painel', methods=['GET'])
+def listar_colunas_painel():
+    painel_id = request.args.get('painel_id')
+    
+    with get_db_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute('SELECT nr_sequencia, ds_coluna FROM hp_painel_coluna WHERE fk_nr_seq_painel = :1', (painel_id,))
+        colunas = cursor.fetchall()
+
+        colunas_list = [{'nr_sequencia': coluna[0], 'ds_coluna': coluna[1]} for coluna in colunas]
+        return jsonify({'colunas': colunas_list})
+    
 
 # Editar Regra de Cor
 @app.route('/editar_regra_cor/<int:regra_id>', methods=['GET', 'POST'])

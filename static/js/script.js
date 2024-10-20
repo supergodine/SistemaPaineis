@@ -541,20 +541,56 @@ function editarRegra(id, valor, icone, classe, substituicao, cor, coluna, celula
 
 // Função para salvar as alterações de Dashboard
 
-// Função para salvar o dashboard ao clicar no botão "Salvar"
-$('#saveDashboardButton').on('click', function(event) {
+$(document).ready(function() {
+    $('#saveDashboardButton').on('click', function(event) {
+        console.log('Botão clicado!');  // Para verificar se o evento está sendo acionado
+        alert('Botão clicado!');  // Para garantir que o click está funcionando
+        event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
+
+        let formData = {
+            // Adicione seus campos aqui
+            dashboard_id: $('#dashboard_id').val(),
+            titulo_dashboard: $('#titulo_dashboard').val(),
+            sql_dashboard: $('#sql_dashboard').val(),
+            cor_dashboard: $('#cor_dashboard').val(),
+            painel_id: $('input[name="painel_id"]').val()
+        };
+
+        // Defina a URL de acordo com o modo de edição ou adição
+        let url = formData.dashboard_id ? '/edit_dashboard' : '/cadastrar_dashboard'; 
+
+        $.ajax({
+            url: url,
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    alert('Dashboard salvo com sucesso!');
+                    location.reload();  // Recarrega a página para refletir as mudanças
+                } else {
+                    alert('Erro: ' + response.error);
+                }
+            },
+            error: function(error) {
+                console.error('Erro na comunicação com o servidor:', error);
+                alert('Erro ao salvar o dashboard.');
+            }
+        });
+    });
+});
+
+// Editar dashboard
+$('#editDashboardButton').on('click', function(event) {
     event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
-    
+
     let formData = {
         dashboard_id: $('#dashboard_id').val(),
         titulo_dashboard: $('#titulo_dashboard').val(),
         sql_dashboard: $('#sql_dashboard').val(),
         cor_dashboard: $('#cor_dashboard').val(),
-        painel_id: $('input[name="painel_id"]').val()
     };
 
-    // Defina a URL de acordo com o modo de edição ou adição
-    let url = formData.dashboard_id ? '/edit_dashboard' : '/cadastrar_dashboard'; 
+    let url = '/editar_dashboard/' + formData.dashboard_id;
 
     $.ajax({
         url: url,
@@ -562,7 +598,7 @@ $('#saveDashboardButton').on('click', function(event) {
         data: formData,
         success: function(response) {
             if (response.success) {
-                alert('Dashboard salvo com sucesso!');
+                alert('Dashboard atualizado com sucesso!');
                 location.reload();  // Recarrega a página para refletir as mudanças
             } else {
                 alert('Erro: ' + response.error);
@@ -570,73 +606,125 @@ $('#saveDashboardButton').on('click', function(event) {
         },
         error: function(error) {
             console.error('Erro na comunicação com o servidor:', error);
-            alert('Erro ao salvar o dashboard.');
+            alert('Erro ao atualizar o dashboard.');
         }
     });
 });
 
 
+// cadastrar legenda
 
+$(document).ready(function() {
+    $('#saveLegendButton').on('click', function(event) {
+        event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
 
+        // Captura os dados do formulário
+        let titulo_legenda = $('#titulo_legenda').val();
+        let cor_legenda = $('#cor_legenda').val();
+        let numero_apre_legenda = $('#numero_apre_legenda').val();
+        let painel_id = $('input[name="painel_id"]').val();
 
-// Função para salvar as alterações de Legenda
-$('#saveLegendButton').on('click', function() {
-    let formData = {
-        legenda_id: $('#legenda_id').val(),
-        titulo_legenda: $('#titulo_legenda').val(),
-        cor_legenda: $('#cor_legenda').val(),
-        numero_apre_legenda: $('#numero_apre_legenda').val(),
-    };
+        // Debug: Verificar os valores capturados
+        console.log('Título da Legenda:', titulo_legenda);
+        console.log('Cor da Legenda:', cor_legenda);
+        console.log('Número de Apresentação:', numero_apre_legenda);
+        console.log('ID do Painel:', painel_id);
 
-    let url = editandoLegenda ? '/edit_legenda' : '/add_legenda'; // Ajuste as rotas conforme necessário
-
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: formData,
-        success: function(response) {
-            if (response.success) {
-                alert('Operação realizada com sucesso');
-                // Atualize a interface ou recarregue os dados conforme necessário
-            } else {
-                alert('Erro: ' + response.error);
-            }
-        },
-        error: function(error) {
-            console.error('Erro na comunicação com o servidor', error);
+        // Verificar se os campos estão preenchidos
+        if (!titulo_legenda || !cor_legenda || !numero_apre_legenda || !painel_id) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;  // Para se os campos não estiverem preenchidos
         }
+
+        let formData = {
+            descricao_legenda: titulo_legenda,  // Use o título como descrição
+            cor_legenda: cor_legenda,
+            numero_apre_legenda: numero_apre_legenda,
+            painel_id: painel_id
+        };
+
+        $.ajax({
+            url: '/cadastrar_legenda',
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                console.log('Resposta do servidor:', response);
+                if (response.success) {
+                    alert('Legenda cadastrada com sucesso!');
+                    location.reload();  // Recarrega a página para refletir as mudanças
+                } else {
+                    alert('Erro: ' + response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Erro na comunicação com o servidor:', xhr.status, xhr.statusText);
+                alert('Erro ao cadastrar a legenda.');
+            }
+        });
     });
 });
 
-// Função para salvar as alterações de Regra
-$('#saveRuleButton').on('click', function() {
-    let formData = {
-        regra_id: $('#regra_id').val(),
-        valor_regra: $('#valor_regra').val(),
-        icone_regra: $('#icone_regra').val(),
-        classe_regra: $('#classe_regra').val(),
-        substituicao_regra: $('#substituicao_regra').val(),
-        cor_regra: $('#cor_regra').val(),
-        coluna_regra: $('#coluna_regra').val(),
-        celula_linha_regra: $('#celula_linha_regra').val(),
-    };
 
-    let url = editandoRegra ? '/edit_regra' : '/add_regra'; // Ajuste as rotas conforme necessário
 
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: formData,
-        success: function(response) {
-            if (response.success) {
-                alert('Operação realizada com sucesso');
-                // Atualize a interface ou recarregue os dados conforme necessário
-            } else {
-                alert('Erro: ' + response.error);
+// Função para popular o select de colunas no modal de regras
+$(document).ready(function() {
+    $('#addRuleModal').on('show.bs.modal', function(event) {
+        var painelId = $('input[name="painel_id"]').val(); // Obtém o painel ID do formulário
+        
+        $.ajax({
+            url: '/listar_colunas_painel',
+            method: 'GET',
+            data: { painel_id: painelId },
+            success: function(response) {
+                var colunasSelect = $('#coluna_regra');
+                colunasSelect.empty(); // Limpa o select antes de adicionar os novos valores
+
+                // Popula o select com as colunas retornadas do servidor
+                $.each(response.colunas, function(index, coluna) {
+                    colunasSelect.append(new Option(coluna.ds_coluna, coluna.nr_sequencia));
+                });
+            },
+            error: function(error) {
+                console.error('Erro ao buscar colunas:', error);
+                alert('Erro ao carregar as colunas.');
             }
-        },
-        error: function(error) {
-            console.error('Erro na comunicação com o servidor', error);
-        }
+        });
+    });
+});
+
+
+    // Função para salvar a nova regra ao clicar no botão "Salvar"
+$(document).ready(function() {    
+    $('#saveRuleButton').on('click', function(event) {
+        event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
+
+        let formData = {
+            valor_regra: $('#valor_regra').val(),
+            icone_regra: $('#icone_regra').val(),
+            classe_regra: $('#classe_regra').val(),
+            substituicao_regra: $('#substituicao_regra').is(':checked') ? 'S' : 'N',  // Verifica se o checkbox está marcado
+            cor_regra: $('#cor_regra').val(),
+            coluna_regra: $('#coluna_regra').val(),
+            celula_linha_regra: $('#celula_linha_regra').val(),
+            painel_id: $('input[name="painel_id"]').val()  // Se necessário, adicione o ID do painel
+        };
+
+        $.ajax({
+            url: '/cadastrar_regra_cor',
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    alert('Regra de cor cadastrada com sucesso!');
+                    location.reload();  // Recarrega a página para refletir as mudanças
+                } else {
+                    alert('Erro: ' + response.error);
+                }
+            },
+            error: function(error) {
+                console.error('Erro na comunicação com o servidor:', error);
+                alert('Erro ao cadastrar a regra.');
+            }
+        });
     });
 });

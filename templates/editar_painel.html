@@ -339,8 +339,7 @@
     </div>
 </div>
 
-
-    <!-- Modal para adicionar/editar regra -->
+  <!-- Modal para adicionar/editar regra -->
 <div class="modal fade" id="addRuleModal" tabindex="-1" role="dialog" aria-labelledby="addRuleModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -354,34 +353,53 @@
                 <form id="addRuleForm" method="POST">
                     <input type="hidden" id="regra_id" name="regra_id"> <!-- Campo oculto para o ID da regra -->
                     <input type="hidden" name="painel_id" value="{{ painel_id }}">
+                    
                     <div class="form-group">
                         <label for="valor_regra">Valor</label>
                         <input type="text" class="form-control" id="valor_regra" name="valor_regra" required>
                     </div>
+
                     <div class="form-group">
                         <label for="icone_regra">Ícone</label>
                         <input type="text" class="form-control" id="icone_regra" name="icone_regra" required>
                     </div>
+
                     <div class="form-group">
                         <label for="classe_regra">Classe</label>
                         <input type="text" class="form-control" id="classe_regra" name="classe_regra" required>
                     </div>
+
+                    <!-- Checkbox para Substituição -->
                     <div class="form-group">
-                        <label for="substituicao_regra">Substituição</label>
-                        <input type="text" class="form-control" id="substituicao_regra" name="substituicao_regra" required>
+                        <label for="substituicao_regra">Substituição de Ícone</label>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="substituicao_regra" name="substituicao_regra" value="S">
+                            <label class="form-check-label" for="substituicao_regra">Sim</label>
+                        </div>
                     </div>
+
                     <div class="form-group">
                         <label for="cor_regra">Cor</label>
                         <input type="color" id="cor_regra" name="cor_regra" value="#000000">
                     </div>
+
+                    <!-- Campo de seleção para Colunas -->
                     <div class="form-group">
                         <label for="coluna_regra">Coluna</label>
-                        <input type="text" class="form-control" id="coluna_regra" name="coluna_regra" required>
+                        <select class="form-control" id="coluna_regra" name="coluna_regra" required>
+                            <!-- As opções serão preenchidas pelo JavaScript -->
+                        </select>
                     </div>
+
+                    <!-- Campo de seleção para Cel/Lin -->
                     <div class="form-group">
                         <label for="celula_linha_regra">Cel/Lin</label>
-                        <input type="text" class="form-control" id="celula_linha_regra" name="celula_linha_regra" required>
+                        <select class="form-control" id="celula_linha_regra" name="celula_linha_regra" required>
+                            <option value="C">Célula</option>
+                            <option value="L">Linha</option>
+                        </select>
                     </div>
+
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         <button type="button" class="btn btn-primary" id="saveRuleButton">Salvar</button>
