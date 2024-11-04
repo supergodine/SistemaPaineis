@@ -51,6 +51,7 @@
                                 <td>{{ painel[2] }}</td>
                                 <td>{{ painel[3] }}</td>
                                 <td>{{ painel[4] }}</td>
+                                
                                 <td class="btn-cel" style="width: 100%;">
                                     <a href="{{ url_for('visualizar_painel', painel_id=painel[0]) }}"
                                         class="btn btn-sm btn-outline-none" title="Visualizar">
@@ -67,10 +68,11 @@
                                             <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
                                         </button>
                                     </form>
-                                    <a href="{{ url_for('duplicar_painel', painel_id=painel[0]) }}"
-                                        class="btn btn-sm btn-outline-none" title="Duplicar">
-                                        <i class="fas fa-copy" style="color: rgb(236, 161, 0)"></i>
-                                    </a>
+                                    <form action="{{ url_for('duplicar_painel', painel_id=painel[0]) }}" method="POST" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-none" title="Duplicar">
+                                            <i class="fas fa-copy" style="color: rgb(236, 161, 0)"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             {% endfor %}

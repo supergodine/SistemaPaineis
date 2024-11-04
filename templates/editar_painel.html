@@ -10,6 +10,7 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
@@ -30,6 +31,30 @@
                 localStorage.setItem('theme', newTheme);
             });
         });
+        
+
+        function excluirColuna(coluna_id) {
+            console.log("o id recebido foi: " + coluna_id);
+                // Mensagem de confirmação
+                if (confirm('Tem certeza de que deseja excluir esta coluna?')) {
+                    // Realiza a requisição POST
+                    $.post('/excluir_coluna', { nr_sequencia: coluna_id })
+                        .done(function (response) {
+                            if (response.success) {
+                                alert('Coluna excluída com sucesso!'); // Mensagem de sucesso
+                                // Remove a linha da tabela
+                                $('tr[data-coluna-id="' + coluna_id + '"]').remove();
+                            } else {
+                                alert('Erro ao excluir a coluna: ' + response.message);
+                            }
+                        })
+                        .fail(function () {
+                            alert('Erro ao fazer a requisição. Por favor, tente novamente.');
+                        });
+                }
+            }
+
+
     </script>
 </head>
 
@@ -39,376 +64,437 @@
         <button id="theme-toggle" class="btn btn-info mb-3">Alternar Tema</button>
         <form id="panelForm" method="POST" action="/editar_painel/{{ painel_id }}">
             <input type="hidden" name="painel_id" value="{{ painel_id }}">
+        
             <div class="form-group">
-                <label for="titulo">Título</label>
-                <input type="text" class="form-control" id="titulo" name="titulo" value="{{ painel[0] }}" required>
+                <label for="ds_titulo_painel">Título</label>
+                <input type="text" class="form-control" id="ds_titulo_painel" name="ds_titulo_painel" value="{{ painel[0] }}"
+                    required>
             </div>
+        
             <div class="form-group">
-                <label for="descricao">Descrição</label>
-                <input type="text" class="form-control" id="descricao" name="descricao" value="{{ painel[1] }}" required>
+                <label for="ds_observacao">Descrição</label>
+                <input type="text" class="form-control" id="ds_observacao" name="ds_observacao" value="{{ painel[1] }}"
+                    required>
             </div>
+        
             <div class="form-group">
-                <label for="sql_query">SQL Query</label>
-                <textarea class="form-control" id="sql_query" name="sql_query" required>{{ painel[4] }}</textarea>
+                <label for="ds_sql">SQL Query</label>
+                <textarea class="form-control" id="ds_sql" name="ds_sql" required>{{ painel[4] }}</textarea>
             </div>
+        
             <div class="d-flex justify-content-between" style="padding: 10px 5px;">
                 <div>
-                    <label for="segundos_atualizacao">Seg/Atualização</label>
-                    <input type="number" class="form-control" id="segundos_atualizacao" name="segundos_atualizacao" value="{{ painel[3] }}" required style="width: 80px;">
+                    <label for="qt_segundos_atualizacao">Seg/Atualização</label>
+                    <input type="number" class="form-control" id="qt_segundos_atualizacao" name="qt_segundos_atualizacao"
+                        value="{{ painel[3] }}" required style="width: 80px;">
                 </div>
                 <div>
-                    <label for="segundos_rolagem">Seg/Rolagem</label>
-                    <input type="number" class="form-control" id="segundos_rolagem" name="segundos_rolagem" value="{{ painel[2] }}" required style="width: 80px;">
+                    <label for="qt_segundos_rolagem">Seg/Rolagem</label>
+                    <input type="number" class="form-control" id="qt_segundos_rolagem" name="qt_segundos_rolagem"
+                        value="{{ painel[2] }}" required style="width: 80px;">
                 </div>
             </div>
+        
             <div class="d-flex justify-content-between mt-3">
                 <a href="/paineis" class="btn btn-secondary">Voltar</a>
                 <button type="submit" class="btn btn-primary">Salvar</button>
             </div>
         </form>
 
+
         <!-- Seção de Configurações Adicionais -->
-<div id="camposAdicionais" class="mt-5">
-    <h3>Configurações Adicionais</h3>
+        <div id="camposAdicionais" class="mt-5">
+            <h3>Configurações Adicionais</h3>
 
-    <!-- Colunas -->
-    <h4>Colunas</h4>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Título</th>
-                <th>Atributo</th>
-                <th>Classe</th> <!-- Nova coluna Classe -->
-                <th>Escondido</th> <!-- Nova coluna Escondido -->
-                <th>Tamanho</th>
-                <th>Nº apre.</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody id="colunas">
-            {% for coluna in colunas %}
-            <tr>
-                <td>{{ coluna[0] }}</td> <!-- Título da coluna -->
-                <td>{{ coluna[1] }}</td> <!-- Atributo -->
-                <td>{{ coluna[2] }}</td> <!-- Classe -->
-                <td>{{ coluna[3] }}</td> <!-- Escondido -->
-                <td>{{ coluna[4] }}</td> <!-- Tamanho -->
-                <td>{{ coluna[5] }}</td> <!-- Nº apre. -->
-                <td>
-                    <button class="btn btn-sm btn-outline-none" 
-                            onclick="editarColuna('{{ coluna[6] }}', '{{ coluna[0] }}', '{{ coluna[1] }}', '{{ coluna[5] }}', '{{ coluna[7] }}', '{{ coluna[2] }}', '{{ coluna[3] }}')">
-                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-none" title="Excluir"
-                            onclick="return confirm('Tem certeza que deseja excluir esta Coluna?');">
-                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-none" onclick="duplicarColuna('{{ coluna[6] }}')">
-                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i> <!-- Ícone de duplicar -->
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <button class="btn btn-info" id="novaColunaBtn" data-toggle="modal" data-target="#addColumnModal">+ Nova Coluna</button>
+            <!-- Colunas -->
+            <h4>Colunas</h4>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Atributo</th>
+                        <th>Classe</th>
+                        <th>Escondido</th>
+                        <th>Tamanho</th>
+                        <th>Nº apre.</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <button class="btn btn-info" id="novaColunaBtn" data-toggle="modal" data-target="#addColumnModal"
+                    style="margin-left: 86%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova
+                    Coluna</button>
+                </button>
+                <tbody id="colunas">
+                    
+                    {% for coluna in colunas %}
+                    <tr data-coluna-id="{{ coluna[0] }}"> <!-- coluna[0] como o ID -->
+                        
+                        <td>{{ coluna[1] }}</td> <!-- NR_SEQUENCIA -->
+                        <td>{{ coluna[2] }}</td> <!-- DS_ATRIBUTO -->
+                        <td>{{ coluna[3] }}</td> <!-- DT_ATUALIZACAO -->
+                        <td>{{ coluna[4] }}</td> <!-- DT_CRIACAO -->
+                        <td>{{ coluna[5] }}</td> <!-- NM_USUARIO_ATUALIZACAO -->
+                        <td>{{ coluna[6] }}</td> <!-- NM_USUARIO_CRIACAO -->
+                        <td>
+                            <button class="btn btn-sm btn-outline-none"
+                                onclick="editarColuna('{{ coluna[1] }}', '{{ coluna[2] }}', '{{ coluna[2] }}', '{{ coluna[3] }}', '{{ coluna[3] }}', '{{ coluna[4] }}', '{{ coluna[6] }}')">
+                                <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)" title="Editar Coluna"></i>
+                            </button>
 
-    <!-- Dashboards -->
-    <h4 class="mt-4">Dashboards</h4>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Título</th>
-                <th>SQL</th>
-                <th>Cor</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody id="dashboards">
-            {% for dashboard in dashboards %}
-            <tr>
-                <td>{{ dashboard[0] }}</td> <!-- Título do dashboard -->
-                <td>{{ dashboard[2] }}</td> <!-- SQL do dashboard -->
-                <td><span style="background-color: {{ dashboard[1] }}; display: block; width: 100%; height: 20px;"></span></td> <!-- Cor -->
-                <td>
-                    <button class="btn btn-sm btn-outline-none" onclick="editarDashboard('{{ dashboard[3] }}', '{{ dashboard[0] }}', '{{ dashboard[2] }}', '{{ dashboard[1] }}')">
-                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-none" onclick="excluirDashboard('{{ dashboard[3] }}')">
-                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-none" onclick="duplicarDashboard('{{ dashboard[3] }}')">
-                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i> <!-- Ícone de duplicar -->
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <button class="btn btn-info" id="novoDashboardBtn" data-toggle="modal" data-target="#addDashboardModal">+ Novo Dashboard</button>
+                            
+                        <button class="btn btn-sm btn-outline-none" title="Excluir" onclick="excluirColuna('{{ coluna[0] }}');">
+                            <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
+                        </button>
 
-    <!-- Legendas -->
-    <h4 class="mt-4">Legendas</h4>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Título</th>
-                <th>Cor</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody id="legendas">
-            {% for legenda in legendas %}
-            <tr>
-                <td>{{ legenda[0] }}</td> <!-- Título da legenda -->
-                <td><span style="background-color: {{ legenda[1] }}; display: block; width: 100%; height: 20px;"></span></td> <!-- Cor -->
-                <td>
-                    <button class="btn btn-sm btn-outline-none" onclick="editarLegenda('{{ legenda[2] }}', '{{ legenda[0] }}', '{{ legenda[1] }}')">
-                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-none" onclick="excluirLegenda('{{ legenda[2] }}')">
-                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-none" onclick="duplicarLegenda('{{ legenda[2] }}')">
-                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i> <!-- Ícone de duplicar -->
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <button class="btn btn-info" id="novaLegendaBtn" data-toggle="modal" data-target="#addLegendModal">+ Nova Legenda</button>
+                            
+                            <button class="btn btn-sm btn-outline-none" onclick="duplicarColuna('{{ coluna[0] }}')">
+                                <i class="fas fa-copy" style="color: rgb(156, 212, 1)" title="Duplicar Coluna"></i>
+                            </button>
 
-    <!-- Regras -->
-    <h4 class="mt-4">Regras</h4>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Valor</th>
-                <th>Ícone</th>
-                <th>Substituição</th>
-                <th>Cor</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody id="regras">
-            {% for regra in regras %}
-            <tr>
-                <td>{{ regra[0] }}</td> <!-- Valor da regra -->
-                <td><i class="{{ regra[3] }}"></i></td> <!-- Ícone -->
-                <td>{{ regra[2] }}</td> <!-- Substituição (sim/não) -->
-                <td><span style="background-color: {{ regra[1] }}; display: block; width: 100%; height: 20px;"></span></td> <!-- Cor -->
-                <td>
-                    <button class="btn btn-sm btn-outline-none" onclick="editarRegra('{{ regra[4] }}', '{{ regra[0] }}', '{{ regra[3] }}', '{{ regra[5] }}', '{{ regra[2] }}', '{{ regra[1] }}', '{{ regra[6] }}', '{{ regra[7] }}')">
-                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-none" onclick="excluirRegra('{{ regra[4] }}')">
-                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-none" onclick="duplicarRegra('{{ regra[4] }}')">
-                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i> <!-- Ícone de duplicar -->
-                    </button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <button class="btn btn-info" id="novaRegraBtn" data-toggle="modal" data-target="#addRuleModal">+ Nova Regra</button>
-</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+
+
+
+            </table>
+
+
+            <!-- Dashboards -->
+            <h4 class="mt-4">Dashboards</h4>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>SQL</th>
+                        <th>Cor</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <button class="btn btn-info" id="novoDashboardBtn" data-toggle="modal" data-target="#addDashboardModal"
+                    style="margin-left: 83.5%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Novo Dashboard</button>
+                </button>
+                <tbody id="dashboards">
+                    {% for dashboard in dashboards %}
+                    <tr>
+                        <td>{{ dashboard[0] }}</td> <!-- Título do dashboard -->
+                        <td>{{ dashboard[2] }}</td> <!-- SQL do dashboard -->
+                        <td><span
+                                style="background-color: {{ dashboard[1] }}; display: block; width: 100%; height: 20px;"></span>
+                        </td>
+                        
+                        <td>
+                            <button class="btn btn-sm btn-outline-none"
+                                onclick="editarDashboard('{{ dashboard[3] }}', '{{ dashboard[0] }}', '{{ dashboard[2] }}', '{{ dashboard[1] }}')">
+                                <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"
+                                    title="Editar Dashboard"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-none"
+                                onclick="excluirDashboard('{{ dashboard[3] }}')">
+                                <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)" title="Excluir Dashboard"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-none"
+                                onclick="duplicarDashboard('{{ dashboard[3] }}')">
+                                <i class="fas fa-copy" style="color: rgb(156, 212, 1)" title="Duplicar Dashboard"></i>
+                            </button>
+                            
+
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+            <!-- Legendas -->
+            <h4 class="mt-4">Legendas</h4>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Cor</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <button class="btn btn-info" id="novaLegendaBtn" data-toggle="modal" data-target="#addLegenddModal"
+                    style="margin-left: 85%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova Legenda</button>
+                </button>
+                <tbody id="legendas">
+                    {% for legenda in legendas %}
+                    <tr>
+                        <td>{{ legenda[0] }}</td> <!-- Título da legenda -->
+                        <td><span
+                                style="background-color: {{ legenda[1] }}; display: block; width: 100%; height: 20px;"></span>
+                        </td> <!-- Cor -->
+                        <td>
+                            <button class="btn btn-sm btn-outline-none"
+                                onclick="editarLegenda('{{ legenda[2] }}', '{{ legenda[0] }}', '{{ legenda[1] }}')">
+                                <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-none" onclick="excluirLegenda('{{ legenda[2] }}')">
+                                <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-none" onclick="duplicarLegenda('{{ legenda[2] }}')">
+                                <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i>
+                            </button>
+                            
+
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+            <!-- Regras -->
+            <h4 class="mt-4">Regras</h4>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Valor</th>
+                        <th>Ícone</th>
+                        <th>Substituição</th>
+                        <th>Cor</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <button class="btn btn-info" id="novaRegraBtn" data-toggle="modal" data-target="#addRuleModal"
+                    style="margin-left: 85%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova Legenda</button>
+                </button>
+                <tbody id="regras">
+                    {% for regra in regras %}
+                    <tr>
+                        <td>{{ regra[0] }}</td> <!-- Valor da regra -->
+                        <td><i class="{{ regra[3] }}"></i></td> <!-- Ícone -->
+                        <td>{{ regra[2] }}</td> <!-- Substituição (sim/não) -->
+                        <td><span
+                                style="background-color: {{ regra[1] }}; display: block; width: 100%; height: 20px;"></span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-none"
+                                onclick="editarRegra('{{ regra[4] }}', '{{ regra[0] }}', '{{ regra[3] }}', '{{ regra[5] }}', '{{ regra[2] }}', '{{ regra[1] }}', '{{ regra[6] }}', '{{ regra[7] }}')">
+                                <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-none" onclick="excluirRegra('{{ regra[4] }}')">
+                                <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-none" onclick="duplicarRegra('{{ regra[4] }}')">
+                                <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i>
+                            </button>
+                            
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
 
     </div>
 
-    <!-- Modais para Adicionar Itens -->
+    <!----------------------------------- Modais para Adicionar Itens ------------------------------------>
     <!-- Modal para adicionar/editar coluna -->
-<div class="modal fade" id="addColumnModal" tabindex="-1" role="dialog" aria-labelledby="addColumnModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="addColumnModalLabel">Adicionar/Editar Coluna</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
-            <span aria-hidden="true">&times;</span>
-          </button>
+    <div class="modal fade" id="addColumnModal" tabindex="-1" role="dialog" aria-labelledby="addColumnModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addColumnModalLabel">Adicionar/Editar Coluna</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="adicionarColunaForm" action="/adicionar_coluna/{{ painel_id }}" method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" id="coluna_id" name="nr_sequencia"> <!-- Campo oculto para o ID da coluna -->
+    
+                        <div class="form-group">
+                            <label for="titulo_coluna">Título da Coluna</label>
+                            <input type="text" class="form-control" id="titulo_coluna" name="titulo_coluna" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="atributo_coluna">Atributo da Coluna</label>
+                            <input type="text" class="form-control" id="atributo_coluna" name="atributo_coluna" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="classe_coluna">Classe da Coluna</label>
+                            <input type="text" class="form-control" id="classe_coluna" name="classe_coluna">
+                        </div>
+                        <div class="form-group">
+                            <label for="tamanho_coluna">Tamanho da Coluna</label>
+                            <input type="number" class="form-control" id="tamanho_coluna" name="tamanho_coluna" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="numero_apre_coluna">Número de Apresentação</label>
+                            <input type="number" class="form-control" id="numero_apre_coluna" name="numero_apre_coluna"
+                                required>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="escondido_coluna" name="escondido_coluna">
+                            <label class="form-check-label" for="escondido_coluna">Escondido</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
         </div>
-        <div class="modal-body">
-          <input type="hidden" id="coluna_id" name="coluna_id"> <!-- Campo oculto para o ID da coluna -->
-          <div class="form-group">
-            <label for="titulo_coluna">Título da Coluna</label>
-            <input type="text" class="form-control" id="titulo_coluna" name="titulo_coluna" required>
-          </div>
-          <div class="form-group">
-            <label for="atributo_coluna">Atributo</label>
-            <input type="text" class="form-control" id="atributo_coluna" name="atributo_coluna" required>
-          </div>
-          <div class="form-group">
-            <label for="classe_coluna">Classe</label>
-            <input type="text" class="form-control" id="classe_coluna" name="classe_coluna">
-          </div>
-          <div class="form-group">
-            <label for="tamanho_coluna">Tamanho</label>
-            <input type="number" class="form-control" id="tamanho_coluna" name="tamanho_coluna" required>
-          </div>
-          <div class="form-group">
-            <label for="numero_apre_coluna">Número de Apresentações</label>
-            <input type="number" class="form-control" id="numero_apre_coluna" name="numero_apre_coluna" required>
-          </div>
-          <div class="form-group">
-            <label for="escondido_coluna">Escondido</label>
-            <input type="checkbox" id="escondido_coluna" name="escondido_coluna">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="saveChangesButton">Salvar</button>
-        </div>
-      </div>
     </div>
-  </div>
-  
+
+
 
     <!-- Outros modais (Dashboard, Legenda, Regra) seguem a mesma estrutura que o Modal da Coluna -->
 
-   <!-- Modal para adicionar/editar dashboard -->
-<div class="modal fade" id="addDashboardModal" tabindex="-1" role="dialog" aria-labelledby="addDashboardModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addDashboardModalLabel">Adicionar/Editar Dashboard</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="addDashboardForm" method="POST">
-                    <input type="hidden" id="dashboard_id" name="dashboard_id"> <!-- Campo oculto para o ID do dashboard -->
-                    <input type="hidden" name="painel_id" value="{{ painel_id }}">
-                    <div class="form-group">
-                        <label for="titulo_dashboard">Título</label>
-                        <input type="text" class="form-control" id="titulo_dashboard" name="titulo_dashboard" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="sql_dashboard">SQL</label>
-                        <textarea class="form-control" id="sql_dashboard" name="sql_dashboard" required></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="cor_dashboard">Cor</label>
-                        <input type="color" id="cor_dashboard" name="cor_dashboard" value="#000000">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" id="saveDashboardButton">Salvar</button>
-                    </div>
-                </form>
+    <!-- Modal para adicionar/editar dashboard -->
+    <div class="modal fade" id="addDashboardModal" tabindex="-1" role="dialog" aria-labelledby="addDashboardModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addDashboardModalLabel">Adicionar/Editar Dashboard</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="addDashboardForm" method="POST">
+                        <input type="hidden" id="dashboard_id" name="dashboard_id">
+                        <!-- Campo oculto para o ID do dashboard -->
+                        <input type="hidden" name="painel_id" value="{{ painel_id }}">
+                        <div class="form-group">
+                            <label for="titulo_dashboard">Título</label>
+                            <input type="text" class="form-control" id="titulo_dashboard" name="titulo_dashboard"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="sql_dashboard">SQL</label>
+                            <textarea class="form-control" id="sql_dashboard" name="sql_dashboard" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="cor_dashboard">Cor</label>
+                            <input type="color" id="cor_dashboard" name="cor_dashboard" value="#000000">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" id="saveDashboardButton">Salvar</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
     <!-- Modal para adicionar/editar legenda -->
-<div class="modal fade" id="addLegendModal" tabindex="-1" role="dialog" aria-labelledby="addLegendModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addLegendModalLabel">Adicionar/Editar Legenda</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="addLegendForm" method="POST">
-                    <input type="hidden" id="legenda_id" name="legenda_id"> <!-- Campo oculto para o ID da legenda -->
-                    <input type="hidden" name="painel_id" value="{{ painel_id }}">
-                    <div class="form-group">
-                        <label for="titulo_legenda">Título</label>
-                        <input type="text" class="form-control" id="titulo_legenda" name="titulo_legenda" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="cor_legenda">Cor</label>
-                        <input type="color" id="cor_legenda" name="cor_legenda" value="#000000">
-                    </div>
-                    <div class="form-group">
-                        <label for="numero_apre_legenda">Nº apre.</label>
-                        <input type="number" class="form-control" id="numero_apre_legenda" name="numero_apre_legenda" required>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" id="saveLegendButton">Salvar</button>
-                    </div>
-                </form>
+    <div class="modal fade" id="addLegendModal" tabindex="-1" role="dialog" aria-labelledby="addLegendModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addLegendModalLabel">Adicionar/Editar Legenda</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="addLegendForm" method="POST">
+                        <input type="hidden" id="legenda_id" name="legenda_id">
+                        <!-- Campo oculto para o ID da legenda -->
+                        <input type="hidden" name="painel_id" value="{{ painel_id }}">
+                        <div class="form-group">
+                            <label for="titulo_legenda">Título</label>
+                            <input type="text" class="form-control" id="titulo_legenda" name="titulo_legenda" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="cor_legenda">Cor</label>
+                            <input type="color" id="cor_legenda" name="cor_legenda" value="#000000">
+                        </div>
+                        <div class="form-group">
+                            <label for="numero_apre_legenda">Nº apre.</label>
+                            <input type="number" class="form-control" id="numero_apre_legenda"
+                                name="numero_apre_legenda" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" id="saveLegendButton">Salvar</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-  <!-- Modal para adicionar/editar regra -->
-<div class="modal fade" id="addRuleModal" tabindex="-1" role="dialog" aria-labelledby="addRuleModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addRuleModalLabel">Adicionar/Editar Regra</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="addRuleForm" method="POST">
-                    <input type="hidden" id="regra_id" name="regra_id"> <!-- Campo oculto para o ID da regra -->
-                    <input type="hidden" name="painel_id" value="{{ painel_id }}">
-                    
-                    <div class="form-group">
-                        <label for="valor_regra">Valor</label>
-                        <input type="text" class="form-control" id="valor_regra" name="valor_regra" required>
-                    </div>
+    <!-- Modal para adicionar/editar regra -->
+    <div class="modal fade" id="addRuleModal" tabindex="-1" role="dialog" aria-labelledby="addRuleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addRuleModalLabel">Adicionar/Editar Regra</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="addRuleForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="regra_id" name="regra_id"> <!-- Campo oculto para o ID da regra -->
+                        <input type="hidden" name="painel_id" id="painel_id" value="{{ painel_id }}">
 
-                    <div class="form-group">
-                        <label for="icone_regra">Ícone</label>
-                        <input type="text" class="form-control" id="icone_regra" name="icone_regra" required>
-                    </div>
+                        <div class="form-group">
+                            <label for="valor_regra">Valor</label>
+                            <input type="text" class="form-control" id="valor_regra" name="valor_regra" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="classe_regra">Classe</label>
-                        <input type="text" class="form-control" id="classe_regra" name="classe_regra" required>
-                    </div>
+                        <div class="form-group">
+                            <label for="icone_regra">Ícone</label>
+                            <input type="text" class="form-control" id="icone_regra" name="icone_regra">
+                        </div>
 
-                    <!-- Checkbox para Substituição -->
-                    <div class="form-group">
-                        <label for="substituicao_regra">Substituição de Ícone</label>
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="substituicao_regra" name="substituicao_regra" value="S">
-                            <label class="form-check-label" for="substituicao_regra">Sim</label>
+                        <div class="form-group">
+                            <label for="classe_regra">Classe</label>
+                            <input type="text" class="form-control" id="classe_regra" name="classe_regra">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="substituicao_regra">Substituição de Ícone</label>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="substituicao_regra"
+                                    name="substituicao_regra" value="S">
+                                <label class="form-check-label" for="substituicao_regra">Sim</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cor_regra">Cor</label>
+                            <input type="color" id="cor_regra" name="cor_regra" value="#000000" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="coluna_regra">Coluna</label>
+                            <select class="form-control" id="coluna_regra" name="coluna_regra" required>
+                                <!-- As opções serão preenchidas pelo JavaScript -->
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="celula_linha_regra">Cel/Lin</label>
+                            <select class="form-control" id="celula_linha_regra" name="celula_linha_regra" required>
+                                <option value="C">Célula</option>
+                                <option value="L">Linha</option>
+                            </select>
                         </div>
                     </div>
-
-                    <div class="form-group">
-                        <label for="cor_regra">Cor</label>
-                        <input type="color" id="cor_regra" name="cor_regra" value="#000000">
-                    </div>
-
-                    <!-- Campo de seleção para Colunas -->
-                    <div class="form-group">
-                        <label for="coluna_regra">Coluna</label>
-                        <select class="form-control" id="coluna_regra" name="coluna_regra" required>
-                            <!-- As opções serão preenchidas pelo JavaScript -->
-                        </select>
-                    </div>
-
-                    <!-- Campo de seleção para Cel/Lin -->
-                    <div class="form-group">
-                        <label for="celula_linha_regra">Cel/Lin</label>
-                        <select class="form-control" id="celula_linha_regra" name="celula_linha_regra" required>
-                            <option value="C">Célula</option>
-                            <option value="L">Linha</option>
-                        </select>
-                    </div>
-
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" id="saveRuleButton">Salvar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-</div>
 
 </body>
 
