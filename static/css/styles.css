@@ -82,7 +82,7 @@ main {
 }
 
 .light-theme .btn-primary {
-    background-color: #007bff;
+    background: linear-gradient(45deg, #0a2f57, #00c6ff);
     border-color: #007bff;
 }
 
@@ -92,8 +92,8 @@ main {
 }
 
 .light-theme .btn-info {
-    background-color: #17a2b8;
-    border-color: #17a2b8;
+    background: linear-gradient(45deg, #0a2f57, #00c6ff);
+    border-color: #007bff;
 }
 
 /* Tema Escuro */
@@ -176,7 +176,7 @@ main {
 
 
 .table thead th {
-    background-color: #007bff;
+    background: linear-gradient(45deg, #0a2f57, #00c6ff);
     color: white;
     text-align: center;
     white-space: nowrap;

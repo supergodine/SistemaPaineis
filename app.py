@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.secret_key = 'chave_secreta'
 
 # Configurações de banco de dados
-DB_HOST = '172.16.0.100'
+DB_HOST = 'conecta.grupoprimavera.med.br'
 DB_PORT = '1521'
 DB_SERVICE_NAME = 'prd'
 DB_USER = 'painel'
@@ -72,7 +72,7 @@ def visualizar_painel(painel_id):
     # Consulta para obter o SQL, título do painel, tempo de rolagem e tempo de atualização
     sql_query = """
         SELECT ds_titulo_painel, ds_sql, qt_segundos_rolagem, qt_segundos_atualizacao 
-        FROM hp_painel 
+        FROM hp_painel
         WHERE nr_sequencia = :painel_id
     """
     
@@ -89,7 +89,7 @@ def visualizar_painel(painel_id):
             # Obter títulos e atributos das colunas cadastradas
             colunas_query = """
             SELECT
-                ds_titulo_coluna, ds_atributo, nm_class, ie_hidden, qt_tamanho, nr_seq_apresentacao, nr_sequencia,  dt_atualizacao, dt_criacao, nm_usuario_atualizacao, nm_usuario_criacao,  ie_situacao, fk_nr_seq_painel
+                ds_titulo_coluna, ds_atributo, nm_class,  qt_tamanho, nr_seq_apresentacao, ie_hidden, nr_sequencia,  dt_atualizacao, dt_criacao, nm_usuario_atualizacao, nm_usuario_criacao,  ie_situacao, fk_nr_seq_painel
                 FROM
                     hp_painel_coluna
                         WHERE
@@ -104,14 +104,25 @@ def visualizar_painel(painel_id):
             if not colunas:
                 flash("Nenhuma coluna cadastrada para este painel.", "danger")
                 return redirect(url_for('lista_paineis'))
+            
+            # Separar colunas visíveis e ocultas
+            colunas_visiveis = [coluna for coluna in colunas if coluna[5] != 'H']  # Colunas onde ie_hidden != 'H'
+            colunas_ocultas = [coluna for coluna in colunas if coluna[5] == 'H']  # Colunas onde ie_hidden == 'H'
 
-            # Separa os títulos e atributos
-            titulos = [coluna[0] for coluna in colunas]  # Títulos das colunas
-            atributos = [coluna[1] for coluna in colunas]  # Atributos
+            # Debugging
+            print("Colunas visíveis:", colunas_visiveis)
+            print("Colunas ocultas:", colunas_ocultas)
 
-            # Ajusta a consulta SQL para selecionar apenas os atributos cadastrados
-            if atributos:
-                sql_body_query = f"SELECT {', '.join(atributos)} FROM ({sql_body_query})"
+            # Obter títulos e atributos
+            titulos_visiveis = [coluna[0] for coluna in colunas_visiveis]  # Títulos das colunas visíveis
+            atributos_visiveis = [coluna[1] for coluna in colunas_visiveis]  # Atributos das colunas visíveis
+            atributos_ocultos = [coluna[1] for coluna in colunas_ocultas]  # Atributos das colunas ocultas
+
+            # Todos os atributos (visíveis + ocultos) devem ser incluídos no SQL
+            todos_atributos = atributos_visiveis + atributos_ocultos
+            sql_body_query = f"SELECT {', '.join(todos_atributos)} FROM ({sql_body_query})"
+            print("Query SQL ajustada:", sql_body_query)
+
 
             # Executa o SQL modificado para obter os dados do painel
             cursor.execute(sql_body_query)
@@ -123,7 +134,7 @@ def visualizar_painel(painel_id):
             
             # Consulta para obter as regras de cor
             regras_query = """
-                SELECT ds_valor, ds_cor, ie_icon_replace, nm_icon, ie_celula_linha, nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao
+                SELECT nr_sequencia, ds_valor, ds_cor, ie_icon_replace, nm_icon, ie_celula_linha, nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao
                 FROM hp_painel_regra_cor
                 WHERE fk_nr_seq_painel_coluna IN (
                     SELECT nr_sequencia FROM hp_painel_coluna WHERE fk_nr_seq_painel = :painel_id)
@@ -134,9 +145,10 @@ def visualizar_painel(painel_id):
             # Coleta das regras em uma lista
             regras_resultados = []
             for regra in regras:
-                ds_valor, ds_cor, ie_icon_replace, nm_icon, ie_celula_linha, nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao = regra
+                nr_sequencia, ds_valor, ds_cor, ie_icon_replace, nm_icon, ie_celula_linha, nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao = regra
 
                 regras_resultados.append({
+                    'nr_sequencia': nr_sequencia,
                     'ds_valor': ds_valor if ds_valor is not None else '',
                     'ds_cor': ds_cor if ds_cor is not None else '',
                     'ie_icon_replace': ie_icon_replace if ie_icon_replace is not None else '',
@@ -292,14 +304,15 @@ def visualizar_painel(painel_id):
         finally:
             cursor.close()
             connection.close()
-
+        indices_visiveis = [i for i, coluna in enumerate(colunas) if coluna[5] != 'H']  # Índices das colunas visíveis
         return render_template('visualizar_painel.html',
                             resultados=resultados,  # Enviar todos os resultados
                             titulo_painel=ds_titulo_painel,
-                            titulos=titulos,
+                            titulos=titulos_visiveis,
                             painel_id=painel_id,
                             total=total,
                             per_page=per_page,
+                            indices_visiveis=indices_visiveis,  # Índices para filtrar os valores no template
                             segundos_rolagem=segundos_rolagem,
                             segundos_atualizacao=segundos_atualizacao,
                             dashboards=dashboards_resultados,  # Passar dashboards e resultados para o template
@@ -411,16 +424,16 @@ def editar_painel(painel_id):
 
         # Buscar colunas associadas ao painel
         cursor.execute("""
-            SELECT nr_sequencia, ds_titulo_coluna, ds_atributo, nvl(nm_class,' ') as nm_class, nvl(ie_hidden,' ') as ie_hidden, qt_tamanho, nr_seq_apresentacao 
-            FROM hp_painel_coluna 
-            WHERE fk_nr_seq_painel = :1 
+            SELECT nr_sequencia, ds_titulo_coluna, ds_atributo, nvl(nm_class,' ') as nm_class, qt_tamanho, nr_seq_apresentacao, nvl(ie_hidden,' ') as ie_hidden 
+            FROM hp_painel_coluna
+            WHERE fk_nr_seq_painel = :1
             ORDER BY nr_seq_apresentacao
         """, (painel_id,))
         colunas = cursor.fetchall()
 
         # Buscar dashboards associados ao painel
         cursor.execute("""
-            SELECT ds_titulo, ds_cor, ds_sql 
+            SELECT nr_sequencia, ds_titulo, ds_sql, ds_cor 
             FROM hp_painel_dashboard 
             WHERE fk_nr_seq_painel = :1
         """, (painel_id,))
@@ -428,7 +441,7 @@ def editar_painel(painel_id):
 
         # Buscar legendas associadas ao painel
         cursor.execute("""
-            SELECT ds_legenda, ds_cor 
+            SELECT nr_sequencia, ds_legenda, ds_cor, nr_seq_apresentacao
             FROM hp_painel_legenda 
             WHERE fk_nr_seq_painel = :1
         """, (painel_id,))
@@ -436,7 +449,7 @@ def editar_painel(painel_id):
 
         # Buscar regras de cores associadas ao painel
         cursor.execute("""
-            SELECT ds_valor, ds_cor, nvl(ie_icon_replace,' ') as ie_icon_replace, nm_icon 
+            SELECT nr_sequencia, ds_valor, ds_cor, nvl(ie_icon_replace,' ') as ie_icon_replace, nm_icon 
             FROM hp_painel_regra_cor 
             WHERE fk_nr_seq_painel_coluna IN (
                 SELECT nr_sequencia FROM hp_painel_coluna WHERE fk_nr_seq_painel = :1
@@ -545,9 +558,9 @@ def duplicar_painel(painel_id):
                         f"Data de Atualização: {datetime.now()}, "
                         f"Criador: DMMSANTOS, "
                         f"Atualizador: DMMSANTOS, "
-                        f"Tamanho: {coluna[8]}, "            # QT_TAMANHO (coluna[8])
-                        f"Seq Apresentação: {coluna[6]}, "   # NR_SEQ_APRESENTACAO (coluna[6])
-                        f"Situação: {coluna[7]}")            # IE_SITUACAO (coluna[7])
+                        f"Tamanho: {coluna[8]}, "            
+                        f"Seq Apresentação: {coluna[6]}, "   
+                        f"Situação: {coluna[7]}")           
                 try:
                     # Validação dos dados
                     qt_tamanho = coluna[8]             # qt_tamanho
@@ -702,7 +715,7 @@ def configurar_colunas(painel_id):
         # Captura dos dados do formulário (enviados via modal)
         titulo_coluna = request.form.get('titulo_coluna')
         atributo_coluna = request.form.get('atributo_coluna')
-        classe_coluna = request.form.get('classe_coluna') or None  # Define como None se não estiver preenchido
+        classe_coluna = request.form.get('classe_coluna') or ''  # Define como None se não estiver preenchido
         tamanho_coluna = request.form.get('tamanho_coluna')
         numero_apre_coluna = request.form.get('numero_apre_coluna')
         escondido_coluna = 'H' if request.form.get('escondido_coluna') else None  # Define como None se não estiver marcado
@@ -715,9 +728,7 @@ def configurar_colunas(painel_id):
             # Gerar um novo ID para a coluna
             cursor.execute("SELECT COLUNA_SEQ.NEXTVAL FROM dual")
             coluna_id = cursor.fetchone()[0]
-            print("Nova ID da coluna:", coluna_id) 
-            # Debug: imprimir o ID gerado
-            print(f"ID gerado para a nova coluna: {coluna_id}")
+            
 
             # Inserir nova coluna no banco de dados
             cursor.execute(""" 
@@ -727,19 +738,19 @@ def configurar_colunas(painel_id):
                 QT_TAMANHO, NR_SEQ_APRESENTACAO, IE_HIDDEN, IE_SITUACAO, NM_CLASS)
                 VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13)
             """, (
-                coluna_id, 
-                titulo_coluna, 
-                atributo_coluna, 
-                painel_id, 
-                datetime.now(), 
-                datetime.now(), 
-                "DMMSANTOS", 
-                "DMMSANTOS", 
-                int(tamanho_coluna), 
-                int(numero_apre_coluna), 
-                escondido_coluna,  # IE_HIDDEN
-                'A',               # IE_SITUACAO
-                classe_coluna      # NM_CLASS
+                coluna_id,
+                titulo_coluna,
+                atributo_coluna,
+                painel_id,
+                datetime.now(),
+                datetime.now(),
+                "DMMSANTOS",
+                "DMMSANTOS",
+                int(tamanho_coluna),
+                int(numero_apre_coluna),
+                escondido_coluna,
+                'A',
+                classe_coluna
             ))
 
             connection.commit()
@@ -758,22 +769,33 @@ def configurar_colunas(painel_id):
 
         except Exception as e:
             connection.rollback()
-            print(f"Erro ao inserir a coluna: {str(e)}")  # Debug: imprimir erro
+            
             return jsonify({'success': False, 'error': str(e)}), 500
+        
 
 #Rota editar coluna
 @app.route('/edit_column', methods=['POST'])
 def edit_column():
+    data = request.get_json()  # Recebe os dados JSON
     try:
-        # Obtendo os valores enviados pelo formulário
-        coluna_id = request.form.get('nr_sequencia')
-        titulo_coluna = request.form.get('titulo_coluna')
-        atributo_coluna = request.form.get('atributo_coluna')
-        classe_coluna = request.form.get('classe_coluna')
-        tamanho_coluna = request.form.get('tamanho_coluna')
-        numero_apre_coluna = request.form.get('numero_apre_coluna')
-        escondido_coluna = request.form.get('escondido_coluna')
-        
+        # Obtendo os valores enviados pelo JSON
+        data = request.json
+        coluna_id = data.get('nr_sequencia')
+        titulo_coluna = data.get('titulo_coluna')
+        atributo_coluna = data.get('atributo_coluna')
+        classe_coluna = data.get('classe_coluna')
+        tamanho_coluna = data.get('tamanho_coluna')
+        numero_apre_coluna = data.get('numero_apre_coluna')
+        escondido_coluna = data.get('escondido_coluna')
+        print({
+            'coluna_id': coluna_id,
+            'titulo_coluna': titulo_coluna,
+            'atributo_coluna': atributo_coluna,
+            'classe_coluna': classe_coluna,
+            'tamanho_coluna': tamanho_coluna,
+            'numero_apre_coluna': numero_apre_coluna,
+            'escondido_coluna': escondido_coluna
+        })
         # Verificando se `coluna_id` existe antes de prosseguir
         if not coluna_id:
             return jsonify(success=False, message="ID da coluna não encontrado"), 400
@@ -790,7 +812,7 @@ def edit_column():
                                 NR_SEQ_APRESENTACAO = :5, IE_HIDDEN = :6, DT_ATUALIZACAO = :7,
                                 nm_usuario_atualizacao = :8
                             WHERE NR_SEQUENCIA = :9""",
-                            (titulo_coluna, atributo_coluna, classe_coluna, tamanho_coluna, numero_apre_coluna,
+                        (titulo_coluna, atributo_coluna, classe_coluna, tamanho_coluna, numero_apre_coluna,
                             'H' if escondido_coluna else None, dt_atualizacao, usuario_atualizacao, coluna_id))
             
             # Commit da transação
@@ -822,8 +844,8 @@ def duplicar_coluna():
         # Obter dados da coluna original
         cursor.execute("""
             SELECT DS_ATRIBUTO, DT_ATUALIZACAO, DT_CRIACAO, NM_USUARIO_ATUALIZACAO, NM_USUARIO_CRIACAO,
-                   NR_SEQ_APRESENTACAO, IE_SITUACAO, QT_TAMANHO, DS_TITULO_COLUNA, FK_NR_SEQ_PAINEL,
-                   IE_HIDDEN, NM_CLASS
+                NR_SEQ_APRESENTACAO, IE_SITUACAO, QT_TAMANHO, DS_TITULO_COLUNA, FK_NR_SEQ_PAINEL,
+                IE_HIDDEN, NM_CLASS
             FROM HP_PAINEL_COLUNA
             WHERE NR_SEQUENCIA = :1
         """, (coluna_id,))
@@ -842,8 +864,8 @@ def duplicar_coluna():
                     PAINEL_SEQ.NEXTVAL, :1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12
                 )
             """, (
-                coluna_original[0], coluna_original[1], coluna_original[2], coluna_original[3], 
-                coluna_original[4], coluna_original[5], coluna_original[6], coluna_original[7], 
+                coluna_original[0], coluna_original[1], coluna_original[2], coluna_original[3],
+                coluna_original[4], coluna_original[5], coluna_original[6], coluna_original[7],
                 novo_titulo, coluna_original[9], coluna_original[10], coluna_original[11]
             ))
             connection.commit()
@@ -851,15 +873,12 @@ def duplicar_coluna():
         else:
             return jsonify(success=False, message='Coluna original não encontrada.')
 
-
-    
     
 #Rota excluir coluna
-
 @app.route('/excluir_coluna', methods=['POST'])
 def excluir_coluna():
     coluna_id = request.form.get('nr_sequencia')
-    print(f"coluna_id recebido: {coluna_id}")  # Debug: verifique o valor recebido
+
 
     try:
         coluna_id = int(coluna_id)  # Tente converter para inteiro
@@ -921,8 +940,8 @@ def cadastrar_dashboard():
                 painel_id, 
                 datetime.now(), 
                 datetime.now(), 
-                "DMMSANTOS",  # Substitua pelo usuário atual se necessário
-                "DMMSANTOS"   # Substitua pelo usuário atual se necessário
+                "DMMSANTOS",  
+                "DMMSANTOS"   
             ))
 
             connection.commit()
@@ -943,58 +962,108 @@ def cadastrar_dashboard():
 
 
 # Rota editar dashboard
-@app.route('/editar_dashboard/<int:dashboard_id>', methods=['POST'])
-def editar_dashboard(dashboard_id):
-    with get_db_connection() as connection:
-        cursor = connection.cursor()
+@app.route('/editar_dashboard', methods=['POST'])
+def editar_dashboard():
+    data = request.get_json(force=True)  # Captura os dados no formato JSON
+    try:
+        # Extrai os dados do JSON recebido
+        dashboard_id = data.get('nr_sequencia')
+        titulo_dashboard = data.get('titulo_dashboard')
+        sql_dashboard = data.get('sql_dashboard')
+        cor_dashboard = data.get('cor_dashboard')
 
-        # Captura os dados do formulário enviados via modal
-        titulo_dashboard = request.form.get('titulo_dashboard')
-        sql_dashboard = request.form.get('sql_dashboard')
-        cor_dashboard = request.form.get('cor_dashboard')
+        print({
+            'dashboard_id': dashboard_id,
+            'titulo_dashboard': titulo_dashboard,
+            'sql_dashboard': sql_dashboard,
+            'cor_dashboard': cor_dashboard
+        })
 
-        # Verificar se os campos obrigatórios estão preenchidos
-        if not titulo_dashboard or not sql_dashboard:
-            return jsonify({'success': False, 'error': 'Preencha todos os campos obrigatórios'}), 400
+        # Verifica se os dados obrigatórios estão presentes
+        if not dashboard_id:
+            return jsonify(success=False, message="ID do Dashboard não encontrado."), 400
 
-        try:
-            # Atualizar o dashboard no banco de dados
+        # Variáveis de atualização
+        dt_atualizacao = datetime.now()
+        usuario_atualizacao = 'DMMSANTOS'
+
+        # Realiza a atualização no banco de dados
+        with get_db_connection() as connection:
+            cursor = connection.cursor()
+            # Execução do comando SQL
             cursor.execute("""
-                UPDATE hp_painel_dashboard
-                SET ds_titulo = :1, ds_sql = :2, ds_cor = :3, dt_atualizacao = :4
-                WHERE nr_sequencia = :5
-            """, (
-                titulo_dashboard, 
-                sql_dashboard, 
-                cor_dashboard, 
-                datetime.now(), 
-                dashboard_id
-            ))
+                UPDATE HP_PAINEL_DASHBOARD
+                SET DS_TITULO = :1, DS_SQL = :2, DS_COR = :3, DT_ATUALIZACAO = :4, NM_USUARIO_ATUALIZACAO = :5
+                WHERE NR_SEQUENCIA = :6
+            """, (titulo_dashboard, sql_dashboard, cor_dashboard, dt_atualizacao, usuario_atualizacao, dashboard_id))
+
+            # Confirma a transação
             connection.commit()
 
-            # Retornar sucesso e os dados do dashboard atualizado para serem refletidos no frontend
-            return jsonify({
-                'success': True,
-                'dashboard_id': dashboard_id,
-                'titulo_dashboard': titulo_dashboard,
-                'sql_dashboard': sql_dashboard,
-                'cor_dashboard': cor_dashboard
-            }), 200
+            return jsonify(success=True, message="Dashboard editado com sucesso")
 
-        except Exception as e:
-            connection.rollback()
-            print(f"Erro ao atualizar o dashboard: {str(e)}")  # Debug: imprimir erro
-            return jsonify({'success': False, 'error': str(e)}), 500
+    except Exception as e:
+        # Tratamento de erro com detalhes
+        print("Erro ao editar dashboard:", str(e))
+        return jsonify(success=False, message=f"Erro ao editar o dashboard: {str(e)}"), 500
 
 # Excluir Dashboard
 @app.route('/excluir_dashboard/<int:dashboard_id>', methods=['POST'])
 def excluir_dashboard(dashboard_id):
+    print("Id do dashboard para exclusão ", dashboard_id)
     with get_db_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("DELETE FROM hp_painel_dashboard WHERE nr_sequencia = :1", (dashboard_id,))
         connection.commit()
-        flash('Dashboard excluído com sucesso!')
-        return redirect(url_for('listar_dashboards'))
+        
+    return jsonify(success=True, message='Coluna excluída com sucesso!')
+
+# Duplicar Dashboard
+@app.route('/duplicar_dashboard', methods=['POST'])
+def duplicar_dashboard():
+    dashboard_id = request.form.get('nr_sequencia')
+    print(f"ID do painel a ser duplicado: {dashboard_id}")
+
+    try:
+        dashboard_id = int(dashboard_id)  # Tente converter para inteiro
+    except ValueError:
+        return jsonify(success=False, message='ID do painel é inválido.')
+
+    with get_db_connection() as connection:
+        if connection is None:
+            return jsonify(success=False, message="Erro ao conectar ao banco de dados.")
+
+        cursor = connection.cursor()
+        # Obter dados do painel original
+        cursor.execute("""
+            SELECT DS_COR, DT_ATUALIZACAO, DT_CRIACAO, NM_USUARIO_ATUALIZACAO, NM_USUARIO_CRIACAO,
+                   DS_SQL, DS_TITULO, FK_NR_SEQ_PAINEL
+            FROM HP_PAINEL_DASHBOARD
+            WHERE NR_SEQUENCIA = :1
+        """, (dashboard_id,))
+        dashboard_original = cursor.fetchone()
+
+        if dashboard_original:
+            novo_titulo = "Cópia " + dashboard_original[6]  # Ajuste o índice conforme necessário para pegar o título
+
+            # Inserir o novo painel duplicado, incluindo a sequência
+            cursor.execute("""
+                INSERT INTO HP_PAINEL_DASHBOARD (
+                    NR_SEQUENCIA, DS_COR, DT_ATUALIZACAO, DT_CRIACAO, NM_USUARIO_ATUALIZACAO,
+                    NM_USUARIO_CRIACAO, DS_SQL, DS_TITULO, FK_NR_SEQ_PAINEL
+                ) VALUES (
+                    PAINEL_SEQ.NEXTVAL, :1, :2, :3, :4, :5, :6, :7, :8
+                )
+            """, (
+                dashboard_original[0], dashboard_original[1], dashboard_original[2], 
+                dashboard_original[3], dashboard_original[4], dashboard_original[5],
+                novo_titulo, dashboard_original[7]
+            ))
+            connection.commit()
+            return jsonify(success=True, message='Painel duplicado com sucesso!')
+        else:
+            return jsonify(success=False, message='Painel original não encontrado.')
+
 # ---------------- FIM Rotas de Dashboard ----------------
 
 # ---------------- INÍCIO Rotas de Legendas ----------------
@@ -1069,36 +1138,127 @@ def cadastrar_legenda():
             return jsonify({'success': False, 'error': str(e)}), 500
 
 # Editar legenda
-@app.route('/editar_legenda/<int:legenda_id>', methods=['GET', 'POST'])
-def editar_legenda(legenda_id):
+@app.route('/editar_legenda', methods=['POST'])
+def editar_legenda():
+    legenda_id = request.form.get('legenda_id')
+    painel_id = request.form.get('painel_id')
+    titulo_legenda = request.form.get('titulo_legenda')
+    cor_legenda = request.form.get('cor_legenda')
+    numero_apre_legenda = request.form.get('numero_apre_legenda')
+
+    if not legenda_id or not titulo_legenda or not numero_apre_legenda:
+        return jsonify(success=False, message="Dados insuficientes para atualização.")
+
+    try:
+        legenda_id = int(legenda_id)
+        numero_apre_legenda = int(numero_apre_legenda)
+    except ValueError:
+        return jsonify(success=False, message="ID ou número de apresentação inválido.")
+
     with get_db_connection() as connection:
+        if connection is None:
+            return jsonify(success=False, message="Erro ao conectar ao banco de dados.")
+
         cursor = connection.cursor()
-        
-        if request.method == 'POST':
-            descricao_legenda = request.form['descricao_legenda']
-            
-            cursor.execute("""
-                UPDATE hp_painel_legenda
-                SET ds_legenda = :1
-                WHERE nr_sequencia = :2
-            """, (descricao_legenda, legenda_id))
-            connection.commit()
-            flash('Legenda atualizada com sucesso!')
-            return redirect(url_for('listar_legendas'))
-        
-        cursor.execute('SELECT * FROM hp_painel_legenda WHERE nr_sequencia = :1', (legenda_id,))
-        legenda = cursor.fetchone()
-        return render_template('editar_legenda.html', legenda=legenda)
+        # Atualizar a legenda no banco de dados
+        cursor.execute("""
+            UPDATE HP_PAINEL_LEGENDA
+            SET DS_LEGENDA = :1, DS_COR = :2, NR_SEQ_APRESENTACAO = :3
+            WHERE NR_SEQUENCIA = :4 AND FK_NR_SEQ_PAINEL = :5
+        """, (titulo_legenda, cor_legenda, numero_apre_legenda, legenda_id, painel_id))
+        connection.commit()
+
+    return jsonify(success=True, message="Legenda atualizada com sucesso.")
+
 
 # Excluir Legenda
 @app.route('/excluir_legenda/<int:legenda_id>', methods=['POST'])
 def excluir_legenda(legenda_id):
+    print("ID da legenda para exclusão:", legenda_id)
     with get_db_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("DELETE FROM hp_painel_legenda WHERE nr_sequencia = :1", (legenda_id,))
         connection.commit()
-        flash('Legenda excluída com sucesso!')
-        return redirect(url_for('listar_legendas'))
+        
+    return jsonify(success=True, message='Legenda excluída com sucesso!')
+
+#Duplicar Legenda
+
+@app.route('/duplicar_legenda', methods=['POST'])
+def duplicar_legenda():
+    legenda_id = request.form.get('legenda_id')  # Recebe o ID da legenda a ser duplicada
+    print(f"ID da legenda a ser duplicada: {legenda_id}")
+
+    # Verifica se o ID fornecido é válido
+    if not legenda_id:
+        return jsonify(success=False, message="ID da legenda não informado.")
+
+    try:
+        legenda_id = int(legenda_id)  # Tenta converter para inteiro
+    except ValueError:
+        return jsonify(success=False, message="ID da legenda inválido.")
+
+    with get_db_connection() as connection:
+        if connection is None:
+            return jsonify(success=False, message="Erro ao conectar ao banco de dados.")
+
+        cursor = connection.cursor()
+
+        try:
+            # Obter os dados da legenda original
+            cursor.execute("""
+                SELECT DS_COR, DS_LEGENDA, DT_CRIACAO, DT_ATUALIZACAO,
+                       NM_USUARIO_CRIACAO, NM_USUARIO_ATUALIZACAO, 
+                       NR_SEQ_APRESENTACAO, IE_SITUACAO, FK_NR_SEQ_PAINEL
+                FROM hp_painel_legenda
+                WHERE NR_SEQUENCIA = :1
+            """, (legenda_id,))
+            legenda_original = cursor.fetchone()
+
+            if not legenda_original:
+                return jsonify(success=False, message="Legenda original não encontrada.")
+
+            # Gerar novo ID para a legenda duplicada
+            cursor.execute("SELECT LEGENDA_SEQ.NEXTVAL FROM dual")
+            nova_legenda_id = cursor.fetchone()[0]
+
+            # Adicionar "Cópia de" à descrição da legenda
+            nova_descricao = f"Cópia de {legenda_original[1]}"
+
+            # Inserir a legenda duplicada
+            cursor.execute("""
+                INSERT INTO hp_painel_legenda (
+                    NR_SEQUENCIA, DS_COR, DS_LEGENDA, DT_CRIACAO, DT_ATUALIZACAO,
+                    NM_USUARIO_CRIACAO, NM_USUARIO_ATUALIZACAO, NR_SEQ_APRESENTACAO,
+                    IE_SITUACAO, FK_NR_SEQ_PAINEL
+                ) VALUES (
+                    :1, :2, :3, :4, :5, :6, :7, :8, :9, :10
+                )
+            """, (
+                nova_legenda_id,
+                legenda_original[0],  # DS_COR
+                nova_descricao,       # DS_LEGENDA
+                datetime.now(),       # DT_CRIACAO
+                datetime.now(),       # DT_ATUALIZACAO
+                "DMMSANTOS",          # NM_USUARIO_CRIACAO
+                "DMMSANTOS",          # NM_USUARIO_ATUALIZACAO
+                legenda_original[6],  # NR_SEQ_APRESENTACAO
+                legenda_original[7],  # IE_SITUACAO
+                legenda_original[8],  # FK_NR_SEQ_PAINEL
+            ))
+
+            connection.commit()
+
+            return jsonify(success=True, message="Legenda duplicada com sucesso!", nova_legenda_id=nova_legenda_id)
+        
+        except Exception as e:
+            connection.rollback()
+            print(f"Erro ao duplicar a legenda: {str(e)}")  # Debug para identificar o erro
+            return jsonify(success=False, message=f"Erro ao duplicar a legenda: {str(e)}")
+
+
+
+
 # ---------------- FIM Rotas de Legendas ----------------
 
 # ---------------- INÍCIO Rotas de Regras de Cor ----------------
@@ -1124,91 +1284,205 @@ def listar_colunas_painel():
         return jsonify({'colunas': colunas_list})
     
     
-#Rora cadastrar regra
+#Rota cadastrar regra
 @app.route('/cadastrar_regra_cor', methods=['POST'])
 def cadastrar_regra_cor():
-    data = request.json  # Usa request.json para dados JSON
+    data = request.json
     if not data:
-        return jsonify({'success': False, 'message': 'Nenhum dado recebido.'}), 400  # Adicione tratamento para dados vazios
-
-    print(f"Dados recebidos: {data}")  # Print para verificar os dados recebidos
-
-    descricao_regra = data['valor_regra']
-    cor_regra = data['cor_regra']
-    icone_regra = data['icone_regra']
-    classe_regra = data['classe_regra']
+        return jsonify({'success': False, 'message': 'Nenhum dado recebido.'}), 400
+    # Atribuição dos dados
+    descricao_regra = data.get('valor_regra')
+    cor_regra = data.get('cor_regra')
+    icone_regra = data.get('icone_regra') or ''
+    classe_regra = data.get('classe_regra') or ''  # Valor padrão caso esteja ausente
     substituicao_regra = data.get('substituicao_regra', 'N')
-    coluna_id = data['coluna_regra']
-    celula_linha_regra = data['celula_linha_regra']
-    usuario_logado = session.get('username')
+    coluna_id = data.get('coluna_regra')
+    celula_linha_regra = data.get('celula_linha_regra')
+    usuario_logado = "DMMSANTOS"  # Ou session.get('username') para capturar o usuário da sessão
 
-    print(f"Descrição da regra: {descricao_regra}, Cor: {cor_regra}, Ícone: {icone_regra}, Classe: {classe_regra}, Substituição: {substituicao_regra}, ID da coluna: {coluna_id}, Linha da célula: {celula_linha_regra}, Usuário logado: {usuario_logado}")
-
+    # Conexão com o banco
     with get_db_connection() as connection:
         cursor = connection.cursor()
+        
+        # Obtenção do próximo valor da sequência
         cursor.execute("SELECT REGRA_SEQ.NEXTVAL FROM dual")
         regra_id = cursor.fetchone()[0]
-        print(f"ID da regra gerado: {regra_id}")  # Print para verificar o ID gerado
+        print(f"ID da regra gerado: {regra_id}")
 
         try:
+            # Inserção da nova regra
             cursor.execute(""" 
                 INSERT INTO hp_painel_regra_cor (
                     NR_SEQUENCIA, DS_COR, DT_ATUALIZACAO, DT_CRIACAO,
                     NM_ICON, IE_CELULA_LINHA, NM_USUARIO_ATUALIZACAO,
                     NM_USUARIO_CRIACAO, IE_ICON_REPLACE, IE_SITUACAO,
                     DS_VALOR, FK_NR_SEQ_PAINEL_COLUNA, NM_CLASS
-                ) VALUES (:1, :2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, :3, :4, :5, :5, :6, 'A', :7, :8, :9)
+                ) VALUES (:1, :2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, :3, :4, :5, :6, :7, :8, :9, :10, :11)
             """, (
                 regra_id, cor_regra, icone_regra, celula_linha_regra,
-                usuario_logado, substituicao_regra, descricao_regra,
+                usuario_logado, usuario_logado, substituicao_regra, 'A', descricao_regra,
                 coluna_id, classe_regra
             ))
+
             connection.commit()
-            print("Regra de cor cadastrada com sucesso!")  # Print para confirmar o sucesso
+        
             return jsonify({'success': True, 'message': 'Regra de cor cadastrada com sucesso!'})
+
         except Exception as e:
-            print(f"Erro ao inserir regra: {e}")  # Print para capturar erros na inserção
-            connection.rollback()  # Reverter em caso de erro
-            return jsonify({'success': False, 'message': 'Erro ao cadastrar regra de cor.'})
+            print(f"Erro ao inserir regra: {e}")
+            connection.rollback()
+            return jsonify({'success': False, 'message': f'Erro ao cadastrar regra de cor: {str(e)}'})
 
     return jsonify({'success': False, 'message': 'Erro ao cadastrar regra de cor.'})
 
 
-
-
 # Editar Regra de Cor
-@app.route('/editar_regra_cor/<int:regra_id>', methods=['GET', 'POST'])
-def editar_regra_cor(regra_id):
-    
-    with get_db_connection() as connection:
-        cursor = connection.cursor()
-        
-        if request.method == 'POST':
-            descricao_regra = request.form['descricao_regra']
-            cor_regra = request.form['cor_regra']
-            
+@app.route('/editar_regra_cor', methods=['POST'])
+def editar_regra_cor():
+    # Obtendo dados do formulário
+    regra_id = request.form.get('regra_id')
+    valor_regra = request.form.get('valor_regra')
+    icone_regra = request.form.get('icone_regra') or ''
+    classe_regra = request.form.get('classe_regra') or ''
+    substituicao_regra = request.form.get('substituicao_regra', 'N')  # Padrão 'N' se não for selecionado
+    cor_regra = request.form.get('cor_regra')
+    coluna_regra = request.form.get('coluna_regra')
+    celula_linha_regra = request.form.get('celula_linha_regra')
+
+    # Validações básicas
+    if not regra_id or not valor_regra or not cor_regra:
+        return jsonify(success=False, message="Dados insuficientes para atualização.")
+
+    try:
+        regra_id = int(regra_id)
+    except ValueError:
+        return jsonify(success=False, message="ID da regra inválido.")
+
+    try:
+        # Conectando ao banco de dados e atualizando a regra
+        with get_db_connection() as connection:
+            if connection is None:
+                return jsonify(success=False, message="Erro ao conectar ao banco de dados.")
+
+            cursor = connection.cursor()
+            dt_atualizacao = datetime.now()
+            usuario_atualizacao = 'DMMSANTOS'  # Substitua pelo usuário atual logado, se aplicável
+
+            # Executa a atualização no banco de dados
             cursor.execute("""
-                UPDATE hp_painel_regra_cor
-                SET ds_regra = :1, ds_cor = :2
-                WHERE nr_sequencia = :3
-            """, (descricao_regra, cor_regra, regra_id))
+                UPDATE HP_PAINEL_REGRA_COR
+                SET DS_VALOR = :1, NM_ICON = :2, NM_CLASS = :3, IE_ICON_REPLACE = :4,
+                    DS_COR = :5, DS_COLUNA = :6, IE_CELULA_LINHA = :7, DT_ATUALIZACAO = :8,
+                    nm_usuario_atualizacao = :9
+                WHERE NR_SEQUENCIA = :10
+            """, (
+                valor_regra, icone_regra, classe_regra, substituicao_regra,
+                cor_regra, coluna_regra, celula_linha_regra, dt_atualizacao,
+                usuario_atualizacao, regra_id
+            ))
             connection.commit()
-            flash('Regra de cor atualizada com sucesso!')
-            return redirect(url_for('listar_regras_cor'))
-        
-        cursor.execute('SELECT * FROM hp_painel_regra_cor WHERE nr_sequencia = :1', (regra_id,))
-        regra = cursor.fetchone()
-        return render_template('editar_regra_cor.html', regra=regra)
+
+        return jsonify(success=True, message="Regra de cor atualizada com sucesso.")
+
+    except Exception as e:
+        print("Erro ao editar regra de cor:", str(e))
+        return jsonify(success=False, message="Erro ao atualizar a regra de cor.")
+
 
 # Excluir Regra de Cor
-@app.route('/excluir_regra_cor/<int:regra_id>', methods=['POST'])
-def excluir_regra_cor(regra_id):
+@app.route('/excluir_regra', methods=['POST'])
+def excluir_regra():
+    regra_id = request.form.get('regra_id')  # Recebe o ID da regra do corpo da requisição
+    print(f"ID da regra a ser excluída: {regra_id}")
+
+    try:
+        regra_id = int(regra_id)  # Converte para inteiro, caso necessário
+    except ValueError:
+        return jsonify(success=False, message='ID da regra é inválido.')
+
     with get_db_connection() as connection:
+        if connection is None:
+            return jsonify(success=False, message="Erro ao conectar ao banco de dados.")
+
         cursor = connection.cursor()
-        cursor.execute("DELETE FROM hp_painel_regra_cor WHERE nr_sequencia = :1", (regra_id,))
-        connection.commit()
-        flash('Regra de cor excluída com sucesso!')
-        return redirect(url_for('listar_regras_cor'))
+
+        try:
+            # Executa a exclusão
+            cursor.execute("""
+                DELETE FROM HP_PAINEL_REGRA_COR
+                WHERE NR_SEQUENCIA = :1
+            """, (regra_id,))
+            
+            # Verifica se alguma linha foi afetada
+            if cursor.rowcount > 0:
+                connection.commit()
+                return jsonify(success=True, message='Regra excluída com sucesso!')
+            else:
+                return jsonify(success=False, message='Regra não encontrada.')
+        
+        except Exception as e:
+            print(f"Erro ao excluir a regra: {e}")
+            return jsonify(success=False, message=f'Erro ao excluir a regra: {str(e)}')
+
+#Rota duplicar regra
+@app.route('/duplicar_regra_cor', methods=['POST'])
+def duplicar_regra_cor():
+    regra_id = request.form.get('regra_id')
+    print(f"ID da regra de cor a ser duplicada: {regra_id}")
+
+    try:
+        regra_id = int(regra_id)  # Tente converter para inteiro
+    except ValueError:
+        return jsonify(success=False, message='ID da regra de cor é inválido.')
+
+    with get_db_connection() as connection:
+        if connection is None:
+            return jsonify(success=False, message="Erro ao conectar ao banco de dados.")
+
+        cursor = connection.cursor()
+
+        # Obter dados da regra de cor original
+        cursor.execute("""
+            SELECT DS_COR, NM_ICON, IE_CELULA_LINHA, NM_CLASS, IE_ICON_REPLACE, IE_SITUACAO, 
+                   DS_VALOR, FK_NR_SEQ_PAINEL_COLUNA, NM_USUARIO_CRIACAO
+            FROM HP_PAINEL_REGRA_COR
+            WHERE NR_SEQUENCIA = :1
+        """, (regra_id,))
+        regra_original = cursor.fetchone()
+
+        if regra_original:
+            novo_valor = "Cópia de " + regra_original[6]  # Adiciona "Cópia de" ao valor da regra
+
+            # Inserir a nova regra duplicada
+            cursor.execute("""
+                INSERT INTO HP_PAINEL_REGRA_COR (
+                    NR_SEQUENCIA, DS_COR, DT_ATUALIZACAO, DT_CRIACAO, NM_ICON, IE_CELULA_LINHA,
+                    NM_CLASS, IE_ICON_REPLACE, IE_SITUACAO, DS_VALOR, FK_NR_SEQ_PAINEL_COLUNA,
+                    NM_USUARIO_CRIACAO, NM_USUARIO_ATUALIZACAO
+                ) VALUES (
+                    REGRA_SEQ.NEXTVAL, :1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, :2, :3, :4, :5,
+                    :6, :7, :8, :9, :10
+                )
+            """, (
+                regra_original[0],  # DS_COR
+                regra_original[1],  # NM_ICON
+                regra_original[2],  # IE_CELULA_LINHA
+                regra_original[3],  # NM_CLASS
+                regra_original[4],  # IE_ICON_REPLACE
+                regra_original[5],  # IE_SITUACAO
+                novo_valor,         # DS_VALOR (com "Cópia de")
+                regra_original[7],  # FK_NR_SEQ_PAINEL_COLUNA
+                regra_original[8],  # NM_USUARIO_CRIACAO (mantém o criador original)
+                "DMMSANTOS"         # NM_USUARIO_ATUALIZACAO (usuário atual)
+            ))
+
+            connection.commit()
+            return jsonify(success=True, message='Regra de cor duplicada com sucesso!')
+        else:
+            return jsonify(success=False, message='Regra de cor original não encontrada.')
+
+
+
 # ---------------- FIM Rotas de Regras de Cor ----------------
 
 

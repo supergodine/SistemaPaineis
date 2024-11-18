@@ -12,6 +12,42 @@
 
 </head>
 
+<script>
+ //Pesquisa painel
+ document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('searchInput');
+    const tableBody = document.getElementById('painelTableBody');
+
+    searchInput.addEventListener('input', function () {
+        const filter = searchInput.value.toLowerCase();
+        const rows = tableBody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            let row = rows[i];
+            let cells = row.getElementsByTagName('td');
+            let found = false;
+
+            // Verifica cada célula da linha
+            for (let j = 0; j < cells.length; j++) {
+                const cell = cells[j];
+                if (cell.textContent.toLowerCase().includes(filter)) {
+                    found = true; // Se encontrar, marca como encontrado
+                    break; // Não precisa verificar mais células
+                }
+            }
+
+            // Exibe ou oculta a linha com base na pesquisa
+            if (found) {
+                row.style.display = ''; // Exibe a linha
+            } else {
+                row.style.display = 'none'; // Oculta a linha
+            }
+        }
+    });
+});
+
+</script>
+
 <body>
     <div class="listar-paineis">
         <div class="bg-ligh">

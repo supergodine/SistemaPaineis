@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo_painel }}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+
+<body class="dark-theme">
+    <div class="container-fluid mt-4 page" style="padding: 0;">
+        <div class="header-painel" style="padding: 10px;">
+            <h1 class="text-center">{{ titulo_painel }}</h1>
+            <a href="{{ url_for('lista_paineis') }}" class="btn btn-back btn-primary">
+                <i class="fas fa-arrow-left" style="margin-top: -10px;"></i> Voltar
+            </a>
+
+            {% if resultados %}
+            <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel"
+                data-interval="{{ segundos_rolagem * 1000 }}">
+                <ol class="carousel-indicators" style="height: 1px;">
+                    {% for i in range((total + per_page - 1) // per_page) %}
+                    <li data-target="#carouselExampleIndicators" data-slide-to="{{ i }}"
+                        class="{{ 'active' if i == 0 else '' }}"></li>
+                    {% endfor %}
+                </ol>
+                <div class="carousel-inner">
+                    {% for i in range((total + per_page - 1) // per_page) %}
+                    <div class="carousel-item {{ 'active' if i == 0 else '' }}"
+                        style="height: auto; width: 100%; text-overflow: ellipsis; padding: 10px;">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-dark"
+                                style="table-layout: fixed; width: 100%; height: auto">
+                                <thead>
+                                    <tr>
+                                        {% for coluna in titulos %}
+                                        <th scope="col">{{ coluna }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody id="painelTableBody">
+                                    {% set start_index = i * per_page %}
+                                    {% set end_index = start_index + per_page %}
+                                    {% set pagina_dados = resultados[start_index:end_index] %}
+                                    {% if pagina_dados|length > 0 %}
+                                    {% for resultado in pagina_dados %}
+                                    <tr>
+                                        {% for indice in indices_visiveis %}
+                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0;">
+                                            {{ resultado[indice]|safe }}
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="{{ titulos|length }}" class="text-center">Nenhum dado disponível nesta página.</td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                              
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <p class="text-center">Nenhum dado disponível para este painel.</p>
+            {% endif %}
+
+            <!-- Dashboard cards -->
+            <div class="row" id="dashboard-container">
+                {% for dashboard in dashboards %}
+                <div class="col-md-3 mb-3">
+                    <div class="card dashboard-card" id="card-{{ loop.index }}" data-cor="{{ dashboard.cor }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ dashboard.titulo }}: {{ dashboard.dados | join(', ') }}</h5>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Cards das Legendagens -->
+            <div class="row" id="legenda-container">
+                {% for legenda in legendas %}
+                <div class="col-md-6 mb-6 ">
+                    <div class="card legenda-card" id="legenda-{{ loop.index }}" data-cor="{{ legenda.cor }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ legenda.titulo }}</h5>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <footer class="footer">
+                <div class="row" id="footer-container" style="flex-wrap: wrap; justify-content: flex-start;">
+                </div>
+            </footer>
+        </div>
+
+        <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+
+</html>
