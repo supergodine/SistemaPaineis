@@ -7,58 +7,88 @@
     <title>Lista de Painéis</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> 
-
-
-</head>
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='imagens/favicon.ico') }}">
+    
 <script>
- //Pesquisa painel
- document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.getElementById('searchInput');
-    const tableBody = document.getElementById('painelTableBody');
+    //Pesquisa painel
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('searchInput');
+        const tableBody = document.getElementById('painelTableBody');
 
-    searchInput.addEventListener('input', function () {
-        const filter = searchInput.value.toLowerCase();
-        const rows = tableBody.getElementsByTagName('tr');
+        searchInput.addEventListener('input', function () {
+            const filter = searchInput.value.toLowerCase();
+            const rows = tableBody.getElementsByTagName('tr');
 
-        for (let i = 0; i < rows.length; i++) {
-            let row = rows[i];
-            let cells = row.getElementsByTagName('td');
-            let found = false;
+            for (let i = 0; i < rows.length; i++) {
+                let row = rows[i];
+                let cells = row.getElementsByTagName('td');
+                let found = false;
 
-            // Verifica cada célula da linha
-            for (let j = 0; j < cells.length; j++) {
-                const cell = cells[j];
-                if (cell.textContent.toLowerCase().includes(filter)) {
-                    found = true; // Se encontrar, marca como encontrado
-                    break; // Não precisa verificar mais células
+                // Verifica cada célula da linha
+                for (let j = 0; j < cells.length; j++) {
+                    const cell = cells[j];
+                    if (cell.textContent.toLowerCase().includes(filter)) {
+                        found = true; // Se encontrar, marca como encontrado
+                        break; // Não precisa verificar mais células
+                    }
+                }
+
+                // Exibe ou oculta a linha com base na pesquisa
+                if (found) {
+                    row.style.display = ''; // Exibe a linha
+                } else {
+                    row.style.display = 'none'; // Oculta a linha
+                }
+            }
+        });
+    });
+
+    // Excluir painel
+        function excluirPainel(painel_id) {
+                // Mensagem de confirmação
+                if (confirm('Tem certeza de que deseja excluir este painel?')) {
+                    // Realiza a requisição POST
+                    $.post('/excluir_painel', { nr_sequencia: painel_id })
+                        .done(function (response) {
+                            if (response.success) {
+                                alert('Painel excluído com sucesso!'); // Mensagem de sucesso
+                                // Remove a linha da tabela
+                                $('tr[data-painel-id="' + painel_id + '"]').remove();
+                                location.reload();
+                            } else {
+                                alert('Erro ao excluir o painel: ' + response.message);
+                            }
+                        })
+                        .fail(function () {
+                            alert('Erro ao fazer a requisição. Por favor, tente novamente.');
+                        });
                 }
             }
 
-            // Exibe ou oculta a linha com base na pesquisa
-            if (found) {
-                row.style.display = ''; // Exibe a linha
-            } else {
-                row.style.display = 'none'; // Oculta a linha
-            }
-        }
-    });
-});
+
+        
 
 </script>
+
+</head>
 
 <body>
     <div class="listar-paineis">
         <div class="bg-ligh">
             <div class="row align-items-center mb-3">
-                <div class="logo">
-                <!--  <img src="{{ url_for('static', filename='/imagens/logo.png') }}" alt="Logo"> -->
-                </div>
+                
                 <div class="col">
-                    <h2 class="mt-5" style="text-align: center;">Lista de Painéis</h2>
+                <div class="logo">
+                    <!-- Logotipo do aplicativo -->
+                    <img src="{{ url_for('static', filename='imagens/logo.png') }}" alt="Logotipo" style="max-height: 60px;">
+                </div>
+                    <h2 class="mt-2" style="text-align: center;">Lista de Painéis</h2>
                     <div class="text-right" style="margin: 1rem;">
-                        <button id="themeToggle" class="btn btn-secondary">Alternar Tema</button>
+                        <button id="themeToggle" class="btn btn-secondary">
+                            <i class="fas fa-sun" id="themeIcon"></i> <!-- Ícone de sol inicial -->
+                        </button>
+
                         <a href="/cadastrar_painel" class="btn btn-primary">Novo painel</a>
                     </div>
                     <!-- Campo de Pesquisa -->
@@ -97,13 +127,9 @@
                                         class="btn btn-sm btn-outline-none" title="Editar">
                                         <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
                                     </a>
-                                    <form action="{{ url_for('excluir_painel', painel_id=painel[0]) }}" method="post"
-                                        style="display:inline;">
-                                        <button type="submit" class="btn btn-sm btn-outline-none" title="Excluir"
-                                            onclick="return confirm('Tem certeza que deseja excluir este painel?');">
-                                            <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-outline-none" title="Excluir" onclick="excluirPainel({{ painel[0] }})">
+                                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
+                                    </button>
                                     <form action="{{ url_for('duplicar_painel', painel_id=painel[0]) }}" method="POST" style="display: inline;">
                                         <button type="submit" class="btn btn-sm btn-outline-none" title="Duplicar">
                                             <i class="fas fa-copy" style="color: rgb(236, 161, 0)"></i>

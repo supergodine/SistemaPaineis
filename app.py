@@ -59,7 +59,7 @@ def login():
 def lista_paineis():
     with get_db_connection() as connection:
         cursor = connection.cursor()
-        cursor.execute('SELECT nr_sequencia, ds_titulo_painel, ds_observacao, qt_segundos_rolagem, qt_segundos_atualizacao, ds_sql FROM hp_painel ORDER BY nr_sequencia')
+        cursor.execute('SELECT nr_sequencia, ds_titulo_painel, ds_observacao, qt_segundos_rolagem, qt_segundos_atualizacao, ds_sql FROM hp_painel ORDER BY nr_sequencia asc')
         paineis = cursor.fetchall()
         return render_template('lista_paineis.html', paineis=paineis)
 
@@ -109,9 +109,7 @@ def visualizar_painel(painel_id):
             colunas_visiveis = [coluna for coluna in colunas if coluna[5] != 'H']  # Colunas onde ie_hidden != 'H'
             colunas_ocultas = [coluna for coluna in colunas if coluna[5] == 'H']  # Colunas onde ie_hidden == 'H'
 
-            # Debugging
-            print("Colunas visíveis:", colunas_visiveis)
-            print("Colunas ocultas:", colunas_ocultas)
+            
 
             # Obter títulos e atributos
             titulos_visiveis = [coluna[0] for coluna in colunas_visiveis]  # Títulos das colunas visíveis
@@ -120,8 +118,11 @@ def visualizar_painel(painel_id):
 
             # Todos os atributos (visíveis + ocultos) devem ser incluídos no SQL
             todos_atributos = atributos_visiveis + atributos_ocultos
-            sql_body_query = f"SELECT {', '.join(todos_atributos)} FROM ({sql_body_query})"
-            print("Query SQL ajustada:", sql_body_query)
+            # Adicionar tratamento para valores NULL usando COALESCE
+            atributos_tratados = [f"nvl({atributo}, '') AS {atributo}" for atributo in todos_atributos]
+
+            # Montar o SQL ajustado
+            sql_body_query = f"SELECT {', '.join(atributos_tratados)} FROM ({sql_body_query})"
 
 
             # Executa o SQL modificado para obter os dados do painel
@@ -180,14 +181,17 @@ def visualizar_painel(painel_id):
                 # Executa o SQL do dashboard
                 cursor.execute(ds_sql_dashboard)
                 resultado_dashboard = cursor.fetchall()
+                
+                # Tratamento para remover caracteres indesejados
+                dados_tratados = [item[0] for item in resultado_dashboard]
 
                 # Adiciona os resultados e os dados do dashboard a uma lista
                 dashboards_resultados.append({
                     'titulo': ds_titulo_dashboard,
                     'cor': ds_cor_dashboard,
-                    'dados': resultado_dashboard
+                    'dados': dados_tratados
                 })
-
+                print('teste: ', dashboards_resultados)
             # Consulta para obter as legendas
             legendas_query = """
                 SELECT ds_legenda, ds_cor
@@ -209,7 +213,7 @@ def visualizar_painel(painel_id):
                     'cor': ds_cor_legendas
                 })
 
-                        # Aplicação das regras às linhas e células
+            # Aplicação das regras às linhas e células
             # Cria um dicionário para mapear ds_valor para ds_cor para 'C' e 'L' regras
             regras_por_valor = {}
             for regra in regras_resultados:
@@ -269,7 +273,7 @@ def visualizar_painel(painel_id):
 
                 # Aplica a regra para a linha inteira 'L' somente se a célula não estiver formatada
                 if ds_valor_linha in regras_por_valor:
-                    regra_linha = regras_por_valor[ds_valor_linha].get('L', None)
+                    regra_linha = regras_por_valor[ds_valor_linha].get('L', '')
                     if regra_linha:
                         ds_cor = regra_linha['ds_cor']
                         ie_icon_replace = regra_linha['ie_icon_replace']
@@ -469,14 +473,29 @@ def editar_painel(painel_id):
 
 
 # Rota para excluir painel
-@app.route('/excluir_painel/<int:painel_id>', methods=['POST'])
-def excluir_painel(painel_id):
+#@app.route('/excluir_painel/<int:painel_id>', methods=['POST'])
+#def excluir_painel(painel_id):
+   # with get_db_connection() as connection:
+    #    cursor = connection.cursor()
+     #   cursor.execute("DELETE FROM hp_painel WHERE nr_sequencia = :1", (painel_id,))
+      #  connection.commit()
+       # flash("Painel excluído com sucesso!")
+       # return redirect(url_for('lista_paineis'))
+       
+@app.route('/excluir_painel', methods=['POST'])
+def excluir_painel():
+    painel_id = request.form.get('nr_sequencia')
+    try:
+        painel_id = int(painel_id)  # Tente converter para inteiro
+    except ValueError:
+        return jsonify(success=False, message='ID do painel é inválido.')
+
     with get_db_connection() as connection:
         cursor = connection.cursor()
-        cursor.execute("DELETE FROM hp_painel WHERE nr_sequencia = :1", (painel_id,))
+        cursor.execute("DELETE FROM HP_PAINEL WHERE NR_SEQUENCIA = :1", (painel_id,))
         connection.commit()
-        flash("Painel excluído com sucesso!")
-        return redirect(url_for('lista_paineis'))
+    
+    return jsonify(success=True, message='Painel excluído com sucesso!')
 
 # Rota para duplicar painel
 @app.route('/duplicar_painel/<int:painel_id>', methods=['POST'])

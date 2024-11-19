@@ -32,63 +32,64 @@
                 localStorage.setItem('theme', newTheme);
             });
         });
+        
 
-            /**********************inicio coluna**************************/
+        /**********************inicio coluna**************************/
 
-             // Função para abrir o modal de edição com dados preenchidos
-                function abrirModalEditarColuna(id, titulo, atributo, classe, tamanho, numeroApre, escondido) {
-                    console.log({ id, titulo, atributo, classe, tamanho, numeroApre, escondido });
+        // Função para abrir o modal de edição com dados preenchidos
+        function abrirModalEditarColuna(id, titulo, atributo, classe, tamanho, numeroApre, escondido) {
+            console.log({ id, titulo, atributo, classe, tamanho, numeroApre, escondido });
 
-                    // Preenche os campos do modal com os valores passados
-                    $('#coluna_id_edit').val(id);
-                    $('#titulo_coluna_edit').val(titulo);
-                    $('#atributo_coluna_edit').val(atributo);
-                    $('#classe_coluna_edit').val(classe);
-                    $('#tamanho_coluna_edit').val(tamanho);
-                    $('#numero_apre_coluna_edit').val(numeroApre);
-                    $('#escondido_coluna_edit').prop('checked', escondido === 'H');
+            // Preenche os campos do modal com os valores passados
+            $('#coluna_id_edit').val(id);
+            $('#titulo_coluna_edit').val(titulo);
+            $('#atributo_coluna_edit').val(atributo);
+            $('#classe_coluna_edit').val(classe);
+            $('#tamanho_coluna_edit').val(tamanho);
+            $('#numero_apre_coluna_edit').val(numeroApre);
+            $('#escondido_coluna_edit').prop('checked', escondido === 'H');
 
-                    // Exibe o modal de edição
-                    $('#editColumnModal').modal('show');
+            // Exibe o modal de edição
+            $('#editColumnModal').modal('show');
+        }
+
+        // Configuração do formulário para enviar o dado de edição via AJAX
+        $('#editColunaForm').on('submit', function (event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            const colunaData = {
+                nr_sequencia: $('#coluna_id_edit').val(),
+                titulo_coluna: $('#titulo_coluna_edit').val(),
+                atributo_coluna: $('#atributo_coluna_edit').val(),
+                classe_coluna: $('#classe_coluna_edit').val(),
+                tamanho_coluna: $('#tamanho_coluna_edit').val(),
+                numero_apre_coluna: $('#numero_apre_coluna_edit').val(),
+                escondido_coluna: $('#escondido_coluna_edit').is(':checked') ? 'H' : '' // Define 'H' se estiver marcado
+            };
+            console.log('Dados enviados:', colunaData); // Para confirmar o que está sendo enviado
+
+            // Envia os dados via AJAX
+            $.ajax({
+                url: '/edit_column',
+                type: 'POST',
+                data: colunaData,
+                success: function (response) {
+                    if (response.success) {
+                        alert(response.message); // Exibe mensagem de sucesso
+                        $('#editColumnModal').modal('hide'); // Fecha o modal
+                        location.reload(); // Recarrega a página para atualizar a tabela
+                    } else {
+                        alert(response.message); // Exibe mensagem de erro
+                    }
+                },
+                error: function () {
+                    alert('Ocorreu um erro ao salvar a coluna.');
                 }
-
-                // Configuração do formulário para enviar o dado de edição via AJAX
-                $('#editColunaForm').on('submit', function (event) {
-                    event.preventDefault(); // Impede o envio padrão do formulário
-
-                    const colunaData = {
-                        nr_sequencia: $('#coluna_id_edit').val(),
-                        titulo_coluna: $('#titulo_coluna_edit').val(),
-                        atributo_coluna: $('#atributo_coluna_edit').val(),
-                        classe_coluna: $('#classe_coluna_edit').val(),
-                        tamanho_coluna: $('#tamanho_coluna_edit').val(),
-                        numero_apre_coluna: $('#numero_apre_coluna_edit').val(),
-                        escondido_coluna: $('#escondido_coluna_edit').is(':checked') ? 'H' : '' // Define 'H' se estiver marcado
-                    };
-                    console.log('Dados enviados:', colunaData); // Para confirmar o que está sendo enviado
-
-                    // Envia os dados via AJAX
-                    $.ajax({
-                        url: '/edit_column',
-                        type: 'POST',
-                        data: colunaData,
-                        success: function (response) {
-                            if (response.success) {
-                                alert(response.message); // Exibe mensagem de sucesso
-                                $('#editColumnModal').modal('hide'); // Fecha o modal
-                                location.reload(); // Recarrega a página para atualizar a tabela
-                            } else {
-                                alert(response.message); // Exibe mensagem de erro
-                            }
-                        },
-                        error: function () {
-                            alert('Ocorreu um erro ao salvar a coluna.');
-                        }
-                    });
-                });
+            });
+        });
         // Excluir coluna
         function excluirColuna(coluna_id) {
-            
+
             // Mensagem de confirmação
             if (confirm('Tem certeza de que deseja excluir esta coluna?')) {
                 // Realiza a requisição POST
@@ -109,27 +110,27 @@
         }
 
         // Duplicar coluna
-            function duplicarColuna(coluna_id) {
-                if (confirm('Tem certeza de que deseja duplicar esta coluna?')) {
-                    // Realiza a requisição POST para duplicar a coluna
-                    $.post('/duplicar_coluna', { nr_sequencia: coluna_id })
-                        .done(function (response) {
-                            if (response.success) {
-                                alert('Coluna duplicada com sucesso!'); // Mensagem de sucesso
-                                location.reload(); // Recarrega a página para mostrar a coluna duplicada
-                            } else {
-                                alert('Erro ao duplicar a coluna: ' + response.message);
-                            }
-                        })
-                        .fail(function () {
-                            alert('Erro ao fazer a requisição. Por favor, tente novamente.');
-                        });
-                }
+        function duplicarColuna(coluna_id) {
+            if (confirm('Tem certeza de que deseja duplicar esta coluna?')) {
+                // Realiza a requisição POST para duplicar a coluna
+                $.post('/duplicar_coluna', { nr_sequencia: coluna_id })
+                    .done(function (response) {
+                        if (response.success) {
+                            alert('Coluna duplicada com sucesso!'); // Mensagem de sucesso
+                            location.reload(); // Recarrega a página para mostrar a coluna duplicada
+                        } else {
+                            alert('Erro ao duplicar a coluna: ' + response.message);
+                        }
+                    })
+                    .fail(function () {
+                        alert('Erro ao fazer a requisição. Por favor, tente novamente.');
+                    });
             }
+        }
 
-            /**************************************Fim coluna*********************************/
+        /**************************************Fim coluna*********************************/
 
-       
+
         /*********************************Inicio Legenda*****************************/
         // cadastrar legenda
 
@@ -189,22 +190,22 @@
         }
 
         // duplicar legendas 
-            function duplicarLegenda(legenda_id) {
-                if (confirm('Tem certeza de que deseja duplicar esta legenda?')) {
-                    $.post('/duplicar_legenda', { legenda_id: legenda_id })
-                        .done(function (response) {
-                            if (response.success) {
-                                alert('Legenda duplicada com sucesso!');
-                                location.reload(); // Atualiza a página para mostrar a legenda duplicada
-                            } else {
-                                alert('Erro ao duplicar a legenda: ' + response.message);
-                            }
-                        })
-                        .fail(function () {
-                            alert('Erro ao fazer a requisição. Por favor, tente novamente.');
-                        });
-                }
+        function duplicarLegenda(legenda_id) {
+            if (confirm('Tem certeza de que deseja duplicar esta legenda?')) {
+                $.post('/duplicar_legenda', { legenda_id: legenda_id })
+                    .done(function (response) {
+                        if (response.success) {
+                            alert('Legenda duplicada com sucesso!');
+                            location.reload(); // Atualiza a página para mostrar a legenda duplicada
+                        } else {
+                            alert('Erro ao duplicar a legenda: ' + response.message);
+                        }
+                    })
+                    .fail(function () {
+                        alert('Erro ao fazer a requisição. Por favor, tente novamente.');
+                    });
             }
+        }
 
         // Função para excluir uma legenda
         function excluirLegenda(legendaId) {
@@ -245,304 +246,304 @@
         }
 
         $(document).ready(function () {
-                $('#saveRuleButton').on('click', function (event) {
-                    console.log('Botão clicado!');  // Para verificar se o evento está sendo acionado
-                    alert('Botão clicado!');  // Para garantir que o click está funcionando
+            $('#saveRuleButton').on('click', function (event) {
+                console.log('Botão clicado!');  // Para verificar se o evento está sendo acionado
+                alert('Botão clicado!');  // Para garantir que o click está funcionando
 
-                    event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
+                event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
 
-                    // Captura os dados do formulário
-                    let valor_regra = $('#valor_regra').val();
-                    let icone_regra = $('#icone_regra').val();
-                    let classe_regra = $('#classe_regra').val();
-                    let substituicao_regra = $('#substituicao_regra').is(':checked') ? 'S' : 'N';
-                    let cor_regra = $('#cor_regra').val();
-                    let coluna_regra = $('#coluna_regra').val();
-                    let celula_linha_regra = $('#celula_linha_regra').val();
-                    let painel_id = $('input[name="painel_id"]').val();
+                // Captura os dados do formulário
+                let valor_regra = $('#valor_regra').val();
+                let icone_regra = $('#icone_regra').val();
+                let classe_regra = $('#classe_regra').val();
+                let substituicao_regra = $('#substituicao_regra').is(':checked') ? 'S' : 'N';
+                let cor_regra = $('#cor_regra').val();
+                let coluna_regra = $('#coluna_regra').val();
+                let celula_linha_regra = $('#celula_linha_regra').val();
+                let painel_id = $('input[name="painel_id"]').val();
 
-                    let formData = {
-                        valor_regra: valor_regra,
-                        icone_regra: icone_regra,
-                        classe_regra: classe_regra,
-                        substituicao_regra: substituicao_regra,
-                        cor_regra: cor_regra,
-                        coluna_regra: coluna_regra,
-                        celula_linha_regra: celula_linha_regra,
-                        painel_id: painel_id
-                    };
+                let formData = {
+                    valor_regra: valor_regra,
+                    icone_regra: icone_regra,
+                    classe_regra: classe_regra,
+                    substituicao_regra: substituicao_regra,
+                    cor_regra: cor_regra,
+                    coluna_regra: coluna_regra,
+                    celula_linha_regra: celula_linha_regra,
+                    painel_id: painel_id
+                };
 
-                    $.ajax({
-                        url: '/cadastrar_regra_cor',
-                        method: 'POST',
-                        contentType: 'application/json',  // Define o tipo de conteúdo como JSON
-                        data: JSON.stringify(formData),    // Converte o formData para JSON
-                        success: function (response) {
-                            console.log('Resposta do servidor:', response);
-                            if (response.success) {
-                                alert('Regra cadastrada com sucesso!');
-                                location.reload();
-                            } else {
-                                alert('Erro: ' + response.error);
-                            }
-                        },
-                        error: function (xhr, status, error) {
-                            console.error('Erro na comunicação com o servidor:', xhr.status, xhr.statusText);
-                            alert('Erro ao cadastrar a regra.');
+                $.ajax({
+                    url: '/cadastrar_regra_cor',
+                    method: 'POST',
+                    contentType: 'application/json',  // Define o tipo de conteúdo como JSON
+                    data: JSON.stringify(formData),    // Converte o formData para JSON
+                    success: function (response) {
+                        console.log('Resposta do servidor:', response);
+                        if (response.success) {
+                            alert('Regra cadastrada com sucesso!');
+                            location.reload();
+                        } else {
+                            alert('Erro: ' + response.error);
                         }
-                    });
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Erro na comunicação com o servidor:', xhr.status, xhr.statusText);
+                        alert('Erro ao cadastrar a regra.');
+                    }
                 });
             });
+        });
 
-             // Função para popular o select de colunas no modal de regras
-                $(document).ready(function () {
-                    $('#addRuleModal').on('show.bs.modal', function (event) {
-                        var painelId = $('input[name="painel_id"]').val(); // Obtém o painel ID do formulário
+        // Função para popular o select de colunas no modal de regras
+        $(document).ready(function () {
+            $('#addRuleModal').on('show.bs.modal', function (event) {
+                var painelId = $('input[name="painel_id"]').val(); // Obtém o painel ID do formulário
 
-                        $.ajax({
-                            url: '/listar_colunas_painel',
-                            method: 'GET',
-                            data: { painel_id: painelId },
-                            success: function (response) {
-                                var colunasSelect = $('#coluna_regra');
-                                colunasSelect.empty(); // Limpa o select antes de adicionar os novos valores
+                $.ajax({
+                    url: '/listar_colunas_painel',
+                    method: 'GET',
+                    data: { painel_id: painelId },
+                    success: function (response) {
+                        var colunasSelect = $('#coluna_regra');
+                        colunasSelect.empty(); // Limpa o select antes de adicionar os novos valores
 
-                                // Popula o select com as colunas retornadas do servidor
-                                $.each(response.colunas, function (index, coluna) {
-                                    colunasSelect.append(new Option(coluna.ds_atributo, coluna.nr_sequencia));
-                                });
-                            },
-                            error: function (error) {
-                                console.error('Erro ao buscar colunas:', error);
-                                alert('Erro ao carregar as colunas.');
-                            }
+                        // Popula o select com as colunas retornadas do servidor
+                        $.each(response.colunas, function (index, coluna) {
+                            colunasSelect.append(new Option(coluna.ds_atributo, coluna.nr_sequencia));
                         });
-                    });
+                    },
+                    error: function (error) {
+                        console.error('Erro ao buscar colunas:', error);
+                        alert('Erro ao carregar as colunas.');
+                    }
                 });
+            });
+        });
 
-           // Função para popular o select de colunas no modal de edição de regras
-            $(document).ready(function () {
-                    $('#editRuleModal').on('show.bs.modal', function (event) {
-                        var painelId = $('input[name="painel_id"]').val(); // Obtém o painel ID do formulário
+        // Função para popular o select de colunas no modal de edição de regras
+        $(document).ready(function () {
+            $('#editRuleModal').on('show.bs.modal', function (event) {
+                var painelId = $('input[name="painel_id"]').val(); // Obtém o painel ID do formulário
 
-                        $.ajax({
-                            url: '/listar_colunas_painel',
-                            method: 'GET',
-                            data: { painel_id: painelId },
-                            success: function (response) {
-                                var colunasSelect = $('#edit_coluna_regra');
-                                colunasSelect.empty(); // Limpa o select antes de adicionar os novos valores
+                $.ajax({
+                    url: '/listar_colunas_painel',
+                    method: 'GET',
+                    data: { painel_id: painelId },
+                    success: function (response) {
+                        var colunasSelect = $('#edit_coluna_regra');
+                        colunasSelect.empty(); // Limpa o select antes de adicionar os novos valores
 
-                                // Popula o select com as colunas retornadas do servidor
-                                $.each(response.colunas, function (index, coluna) {
-                                    colunasSelect.append(new Option(coluna.ds_atributo, coluna.nr_sequencia));
-                                });
-                            },
-                            error: function (error) {
-                                console.error('Erro ao buscar colunas:', error);
-                                alert('Erro ao carregar as colunas.');
-                            }
+                        // Popula o select com as colunas retornadas do servidor
+                        $.each(response.colunas, function (index, coluna) {
+                            colunasSelect.append(new Option(coluna.ds_atributo, coluna.nr_sequencia));
                         });
-                    });
+                    },
+                    error: function (error) {
+                        console.error('Erro ao buscar colunas:', error);
+                        alert('Erro ao carregar as colunas.');
+                    }
                 });
+            });
+        });
 
 
 
 
         function abrirModalEditarRegra(regraId, valor, icone, classe, substituicao, cor, coluna, celulaLinha) {
-                // Define os valores nos campos do modal de edição
-                document.getElementById('edit_regra_id').value = regraId;
-                document.getElementById('edit_valor_regra').value = valor;
-                document.getElementById('edit_icone_regra').value = icone;
-                document.getElementById('edit_classe_regra').value = classe;
-                document.getElementById('edit_substituicao_regra').checked = substituicao === 'S';
-                document.getElementById('edit_cor_regra').value = cor;
-                document.getElementById('edit_coluna_regra').value = coluna;
-                document.getElementById('edit_celula_linha_regra').value = celulaLinha;
+            // Define os valores nos campos do modal de edição
+            document.getElementById('edit_regra_id').value = regraId;
+            document.getElementById('edit_valor_regra').value = valor;
+            document.getElementById('edit_icone_regra').value = icone;
+            document.getElementById('edit_classe_regra').value = classe;
+            document.getElementById('edit_substituicao_regra').checked = substituicao === 'S';
+            document.getElementById('edit_cor_regra').value = cor;
+            document.getElementById('edit_coluna_regra').value = coluna;
+            document.getElementById('edit_celula_linha_regra').value = celulaLinha;
 
-                // Abre o modal de edição
-                $('#editRuleModal').modal('show');
-            }
+            // Abre o modal de edição
+            $('#editRuleModal').modal('show');
+        }
 
-            // Função para abrir o modal de edição e preencher os campos
-                function editarRegra(regraId, valor, icone, substituicao, cor) {
-                    // Preencher os campos do formulário com os dados da regra selecionada
-                    document.getElementById('edit_regra_id').value = regraId;
-                    document.getElementById('edit_valor_regra').value = valor;
-                    document.getElementById('edit_icone_regra').value = icone;
-                    document.getElementById('edit_cor_regra').value = cor;
+        // Função para abrir o modal de edição e preencher os campos
+        function editarRegra(regraId, valor, icone, substituicao, cor) {
+            // Preencher os campos do formulário com os dados da regra selecionada
+            document.getElementById('edit_regra_id').value = regraId;
+            document.getElementById('edit_valor_regra').value = valor;
+            document.getElementById('edit_icone_regra').value = icone;
+            document.getElementById('edit_cor_regra').value = cor;
 
-                    // Ajustar o checkbox de substituição
-                    document.getElementById('edit_substituicao_regra').checked = (substituicao === 'S');
+            // Ajustar o checkbox de substituição
+            document.getElementById('edit_substituicao_regra').checked = (substituicao === 'S');
 
-                    // Abrir o modal
-                    $('#editRuleModal').modal('show');
+            // Abrir o modal
+            $('#editRuleModal').modal('show');
+        }
+
+        // Configuração do envio de dados via AJAX
+        $('#editRuleForm').on('submit', function (event) {
+            event.preventDefault(); // Evita o envio padrão do formulário
+
+            // Dados do formulário
+            var formData = $(this).serialize();
+
+            // Enviar dados via AJAX
+            $.ajax({
+                url: '/editar_regra', // Rota no servidor para processar a edição da regra
+                type: 'POST',
+                data: formData,
+                success: function (response) {
+                    // Fechar o modal
+                    $('#editRuleModal').modal('hide');
+                    // Atualizar a tabela de regras ou realizar outra ação de feedback
+                    alert('Regra editada com sucesso!');
+                    location.reload(); // Recarregar a página para atualizar as regras (opcional)
+                },
+                error: function (xhr, status, error) {
+                    // Tratar erros, caso existam
+                    console.error('Erro ao editar a regra:', error);
+                    alert('Houve um erro ao editar a regra.');
                 }
-
-                // Configuração do envio de dados via AJAX
-                $('#editRuleForm').on('submit', function (event) {
-                    event.preventDefault(); // Evita o envio padrão do formulário
-
-                    // Dados do formulário
-                    var formData = $(this).serialize();
-
-                    // Enviar dados via AJAX
-                    $.ajax({
-                        url: '/editar_regra', // Rota no servidor para processar a edição da regra
-                        type: 'POST',
-                        data: formData,
-                        success: function (response) {
-                            // Fechar o modal
-                            $('#editRuleModal').modal('hide');
-                            // Atualizar a tabela de regras ou realizar outra ação de feedback
-                            alert('Regra editada com sucesso!');
-                            location.reload(); // Recarregar a página para atualizar as regras (opcional)
-                        },
-                        error: function (xhr, status, error) {
-                            // Tratar erros, caso existam
-                            console.error('Erro ao editar a regra:', error);
-                            alert('Houve um erro ao editar a regra.');
+            });
+        });
+        //excluir regra
+        function excluirRegra(regra_id) {
+            // Mensagem de confirmação
+            if (confirm('Tem certeza de que deseja excluir esta regra?')) {
+                // Realiza a requisição POST
+                $.post('/excluir_regra', { regra_id: regra_id })
+                    .done(function (response) {
+                        if (response.success) {
+                            alert('Regra excluída com sucesso!'); // Mensagem de sucesso
+                            // Remove a linha da tabela
+                            $('tr[data-regra-id="' + regra_id + '"]').remove();
+                        } else {
+                            alert('Erro ao excluir a regra: ' + response.message);
                         }
+                    })
+                    .fail(function () {
+                        alert('Erro ao fazer a requisição. Por favor, tente novamente.');
                     });
+            }
+        }
+
+        // Duplicar regras
+
+        function duplicarRegraCor(regra_id) {
+            if (confirm('Tem certeza de que deseja duplicar esta regra de cor?')) {
+                // Realiza a requisição POST para duplicar a regra de cor
+                $.post('/duplicar_regra_cor', { regra_id: regra_id })
+                    .done(function (response) {
+                        if (response.success) {
+                            alert('Regra de cor duplicada com sucesso!'); // Mensagem de sucesso
+                            location.reload(); // Recarrega a página para mostrar a regra duplicada
+                        } else {
+                            alert('Erro ao duplicar a regra de cor: ' + response.message);
+                        }
+                    })
+                    .fail(function () {
+                        alert('Erro ao fazer a requisição. Por favor, tente novamente.');
+                    });
+            }
+        }
+
+        var regras = []; // Inicializa a variável regras no escopo global ou do módulo
+
+        // Função para buscar regras do servidor
+        function buscarRegras() {
+            $.ajax({
+                url: '/sua-url-para-buscar-regras',
+                method: 'GET',
+                success: function (data) {
+                    regras = data.regras; // Assume que a resposta contém uma propriedade 'regras'
+                    aplicarCores(); // Chama a função para aplicar cores após carregar as regras
+                },
+                error: function (xhr, status, error) {
+                    console.error("Erro ao buscar regras:", error);
+                }
+            });
+        }
+
+        // Chame essa função para inicializar as regras
+        buscarRegras();
+
+        // Função para aplicar cores
+        function aplicarCores() {
+            $('#painelTableBody tr').each(function () {
+                var rowIndex = $(this).index(); // Índice da linha atual
+                $(this).find('td').each(function (index) {
+                    var cellContent = $(this).text().trim(); // Obtém o conteúdo de texto da célula
+
+                    // Procura a regra correspondente para a célula
+                    var regra = regras.find(function (reg) {
+                        return reg.ds_valor.trim().toLowerCase() === cellContent.toLowerCase();
+                    });
+
+                    // Se encontrar a regra, aplica a cor ou o ícone conforme as condições
+                    if (regra) {
+                        console.log(regra);
+                        if (regra.ie_celula_linha === 'L' && regra.ds_cor) {
+                            $(this).closest('tr').css('background-color', regra.ds_cor); // Aplica a cor ao fundo da linha
+                        } else if (regra.ie_celula_linha === 'C' && regra.ds_cor) {
+                            $(this).css('background-color', regra.ds_cor); // Aplica a cor ao fundo da célula
+                        }
+                        if (regra.ie_icon_replace === 'S' && regra.nm_icon) {
+                            var iconHtml = `<img src="${regra.nm_icon}" alt="${cellContent} icon" />`;
+                            $(this).html(iconHtml); // Substitui o conteúdo da célula pelo ícone
+                        }
+                    }
                 });
-                //excluir regra
-                function excluirRegra(regra_id) {
-                        // Mensagem de confirmação
-                        if (confirm('Tem certeza de que deseja excluir esta regra?')) {
-                            // Realiza a requisição POST
-                            $.post('/excluir_regra', { regra_id: regra_id })
-                                .done(function (response) {
-                                    if (response.success) {
-                                        alert('Regra excluída com sucesso!'); // Mensagem de sucesso
-                                        // Remove a linha da tabela
-                                        $('tr[data-regra-id="' + regra_id + '"]').remove();
-                                    } else {
-                                        alert('Erro ao excluir a regra: ' + response.message);
-                                    }
-                                })
-                                .fail(function () {
-                                    alert('Erro ao fazer a requisição. Por favor, tente novamente.');
-                                });
-                        }
-                    }
-
-                    // Duplicar regras
-
-                    function duplicarRegraCor(regra_id) {
-                        if (confirm('Tem certeza de que deseja duplicar esta regra de cor?')) {
-                            // Realiza a requisição POST para duplicar a regra de cor
-                            $.post('/duplicar_regra_cor', { regra_id: regra_id })
-                                .done(function (response) {
-                                    if (response.success) {
-                                        alert('Regra de cor duplicada com sucesso!'); // Mensagem de sucesso
-                                        location.reload(); // Recarrega a página para mostrar a regra duplicada
-                                    } else {
-                                        alert('Erro ao duplicar a regra de cor: ' + response.message);
-                                    }
-                                })
-                                .fail(function () {
-                                    alert('Erro ao fazer a requisição. Por favor, tente novamente.');
-                                });
-                        }
-                    }
-
-                    var regras = []; // Inicializa a variável regras no escopo global ou do módulo
-
-                        // Função para buscar regras do servidor
-                        function buscarRegras() {
-                            $.ajax({
-                                url: '/sua-url-para-buscar-regras',
-                                method: 'GET',
-                                success: function (data) {
-                                    regras = data.regras; // Assume que a resposta contém uma propriedade 'regras'
-                                    aplicarCores(); // Chama a função para aplicar cores após carregar as regras
-                                },
-                                error: function (xhr, status, error) {
-                                    console.error("Erro ao buscar regras:", error);
-                                }
-                            });
-                        }
-
-                        // Chame essa função para inicializar as regras
-                        buscarRegras();
-
-                        // Função para aplicar cores
-                        function aplicarCores() {
-                            $('#painelTableBody tr').each(function () {
-                                var rowIndex = $(this).index(); // Índice da linha atual
-                                $(this).find('td').each(function (index) {
-                                    var cellContent = $(this).text().trim(); // Obtém o conteúdo de texto da célula
-
-                                    // Procura a regra correspondente para a célula
-                                    var regra = regras.find(function (reg) {
-                                        return reg.ds_valor.trim().toLowerCase() === cellContent.toLowerCase();
-                                    });
-
-                                    // Se encontrar a regra, aplica a cor ou o ícone conforme as condições
-                                    if (regra) {
-                                        console.log(regra);
-                                        if (regra.ie_celula_linha === 'L' && regra.ds_cor) {
-                                            $(this).closest('tr').css('background-color', regra.ds_cor); // Aplica a cor ao fundo da linha
-                                        } else if (regra.ie_celula_linha === 'C' && regra.ds_cor) {
-                                            $(this).css('background-color', regra.ds_cor); // Aplica a cor ao fundo da célula
-                                        }
-                                        if (regra.ie_icon_replace === 'S' && regra.nm_icon) {
-                                            var iconHtml = `<img src="${regra.nm_icon}" alt="${cellContent} icon" />`;
-                                            $(this).html(iconHtml); // Substitui o conteúdo da célula pelo ícone
-                                        }
-                                    }
-                                });
-                            });
-                        }
+            });
+        }
 
 
 
 
         /*************************************fim  regra*********************************************/
 
-       /**************************************Inicio Dashboard***************************************/
+        /**************************************Inicio Dashboard***************************************/
 
 
-         // Função para salvar as alterações de Dashboard
+        // Função para salvar as alterações de Dashboard
 
-            $(document).ready(function () {
-                $('#saveDashboardButton').on('click', function (event) {
-                    return;
-                    console.log('Botão clicado!');  // Para verificar se o evento está sendo acionado
-                    alert('Botão clicado!');  // Para garantir que o click está funcionando
-                    event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
+        $(document).ready(function () {
+            $('#saveDashboardButton').on('click', function (event) {
+                return;
+                console.log('Botão clicado!');  // Para verificar se o evento está sendo acionado
+                alert('Botão clicado!');  // Para garantir que o click está funcionando
+                event.preventDefault();  // Previne o comportamento padrão de submissão do formulário
 
-                    let formData = {
+                let formData = {
 
-                        dashboard_id: $('#dashboard_id').val(),
-                        titulo_dashboard: $('#titulo_dashboard').val(),
-                        sql_dashboard: $('#sql_dashboard').val(),
-                        cor_dashboard: $('#cor_dashboard').val(),
-                        painel_id: $('input[name="painel_id"]').val()
-                    };
+                    dashboard_id: $('#dashboard_id').val(),
+                    titulo_dashboard: $('#titulo_dashboard').val(),
+                    sql_dashboard: $('#sql_dashboard').val(),
+                    cor_dashboard: $('#cor_dashboard').val(),
+                    painel_id: $('input[name="painel_id"]').val()
+                };
 
-                    // Defina a URL de acordo com o modo de edição ou adição
-                    let url = formData.dashboard_id ? '/edit_dashboard' : '/cadastrar_dashboard';
+                // Defina a URL de acordo com o modo de edição ou adição
+                let url = formData.dashboard_id ? '/edit_dashboard' : '/cadastrar_dashboard';
 
-                    $.ajax({
-                        url: url,
-                        method: 'POST',
-                        data: formData,
-                        success: function (response) {
-                            if (response.success) {
-                                alert('Dashboard salvo com sucesso!');
-                                location.reload();  // Recarrega a página para refletir as mudanças
-                            } else {
-                                alert('Erro: ' + response.error);
-                            }
-                        },
-                        error: function (error) {
-                            console.error('Erro na comunicação com o servidor:', error);
-                            alert('Erro ao salvar o dashboard.');
+                $.ajax({
+                    url: url,
+                    method: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        if (response.success) {
+                            alert('Dashboard salvo com sucesso!');
+                            location.reload();  // Recarrega a página para refletir as mudanças
+                        } else {
+                            alert('Erro: ' + response.error);
                         }
-                    });
+                    },
+                    error: function (error) {
+                        console.error('Erro na comunicação com o servidor:', error);
+                        alert('Erro ao salvar o dashboard.');
+                    }
                 });
             });
+        });
 
 
         // Função para abrir o modal de edição de dashboard com dados preenchidos
@@ -691,7 +692,7 @@
                 </button>
                 <tbody id="colunas">
                     {% for coluna in colunas %}
-                    <tr data-coluna-id="{{ coluna[0] }}"> <!-- coluna[0] como o ID -->
+                    <tr data-coluna-id="{{ coluna[0] }}"> 
 
                         <td>{{ coluna[1] }}</td> <!--DS_TITULO -->
                         <td>{{ coluna[2] }}</td> <!--DS_ATRIBUTO-->
@@ -801,7 +802,7 @@
                             <button class="btn btn-sm btn-outline-none" onclick="excluirLegenda('{{ legenda[0] }}')">
                                 <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
                             </button>
-                            
+
                             <button class="btn btn-sm btn-outline-none" onclick="duplicarLegenda('{{ legenda[0] }}')">
                                 <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i>
                             </button>
@@ -825,7 +826,8 @@
                     </tr>
                 </thead>
                 <button class="btn btn-info" id="novaRegraBtn" data-toggle="modal" data-target="#addRuleModal"
-                    style="margin-left: 85%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova Legenda</button>
+                    style="margin-left: 85%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova
+                    Legenda</button>
                 </button>
                 <tbody id="regras">
                     {% for regra in regras %}
@@ -833,7 +835,8 @@
                         <td>{{ regra[1] }}</td> <!-- Valor da regra -->
                         <td><i class="{{ regra[4] }}"></i></td> <!-- Ícone -->
                         <td>{{ regra[3] }}</td> <!-- Substituição (sim/não) -->
-                        <td><span style="background-color: {{ regra[2] }}; display: block; width: 100%; height: 20px;"></span>
+                        <td><span
+                                style="background-color: {{ regra[2] }}; display: block; width: 100%; height: 20px;"></span>
                         </td>
 
                         <td>
@@ -847,16 +850,16 @@
                             <button class="btn btn-sm btn-outline-none" onclick="duplicarRegraCor('{{ regra[0] }}')">
                                 <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i>
                             </button>
-            
+
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            
-            </div>
-            
-            </div>
+
+        </div>
+
+    </div>
 
     <!----------------------------------- Modais para Adicionar Itens ------------------------------------>
     <!-- Modal para adicionar coluna -->
@@ -1201,74 +1204,76 @@
     </div>
 
 
-<!-- Modal para Editar Regra -->
-<div class="modal fade" id="editRuleModal" tabindex="-1" role="dialog" aria-labelledby="editRuleModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editRuleModalLabel">Editar Regra</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form id="editRuleForm" method="post">
-                <div class="modal-body">
-                    <input type="hidden" id="edit_regra_id" name="regra_id"> <!-- Campo oculto para o ID da regra -->
-                    <input type="hidden" name="painel_id" id="painel_id" value="{{ painel_id }}">
+    <!-- Modal para Editar Regra -->
+    <div class="modal fade" id="editRuleModal" tabindex="-1" role="dialog" aria-labelledby="editRuleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editRuleModalLabel">Editar Regra</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="editRuleForm" method="post">
+                    <div class="modal-body">
+                        <input type="hidden" id="edit_regra_id" name="regra_id">
+                        <!-- Campo oculto para o ID da regra -->
+                        <input type="hidden" name="painel_id" id="painel_id" value="{{ painel_id }}">
 
-                    <div class="form-group">
-                        <label for="edit_valor_regra">Valor</label>
-                        <input type="text" class="form-control" id="edit_valor_regra" name="valor_regra" required>
-                    </div>
+                        <div class="form-group">
+                            <label for="edit_valor_regra">Valor</label>
+                            <input type="text" class="form-control" id="edit_valor_regra" name="valor_regra" required>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="edit_icone_regra">Ícone</label>
-                        <input type="text" class="form-control" id="edit_icone_regra" name="icone_regra">
-                    </div>
+                        <div class="form-group">
+                            <label for="edit_icone_regra">Ícone</label>
+                            <input type="text" class="form-control" id="edit_icone_regra" name="icone_regra">
+                        </div>
 
-                    <div class="form-group">
-                        <label for="edit_classe_regra">Classe</label>
-                        <input type="text" class="form-control" id="edit_classe_regra" name="classe_regra">
-                    </div>
+                        <div class="form-group">
+                            <label for="edit_classe_regra">Classe</label>
+                            <input type="text" class="form-control" id="edit_classe_regra" name="classe_regra">
+                        </div>
 
-                    <div class="form-group">
-                        <label for="edit_substituicao_regra">Substituição de Ícone</label>
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="edit_substituicao_regra"
-                                name="substituicao_regra" value="S">
-                            <label class="form-check-label" for="edit_substituicao_regra">Sim</label>
+                        <div class="form-group">
+                            <label for="edit_substituicao_regra">Substituição de Ícone</label>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="edit_substituicao_regra"
+                                    name="substituicao_regra" value="S">
+                                <label class="form-check-label" for="edit_substituicao_regra">Sim</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit_cor_regra">Cor</label>
+                            <input type="color" id="edit_cor_regra" name="cor_regra" value="#000000" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit_coluna_regra">Coluna</label>
+                            <select class="form-control" id="edit_coluna_regra" name="coluna_regra" required>
+                                <!-- As opções serão preenchidas pelo JavaScript -->
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit_celula_linha_regra">Cel/Lin</label>
+                            <select class="form-control" id="edit_celula_linha_regra" name="celula_linha_regra"
+                                required>
+                                <option value="C">Célula</option>
+                                <option value="L">Linha</option>
+                            </select>
                         </div>
                     </div>
-
-                    <div class="form-group">
-                        <label for="edit_cor_regra">Cor</label>
-                        <input type="color" id="edit_cor_regra" name="cor_regra" value="#000000" required>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
                     </div>
-
-                    <div class="form-group">
-                        <label for="edit_coluna_regra">Coluna</label>
-                        <select class="form-control" id="edit_coluna_regra" name="coluna_regra" required>
-                            <!-- As opções serão preenchidas pelo JavaScript -->
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="edit_celula_linha_regra">Cel/Lin</label>
-                        <select class="form-control" id="edit_celula_linha_regra" name="celula_linha_regra" required>
-                            <option value="C">Célula</option>
-                            <option value="L">Linha</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
 
 

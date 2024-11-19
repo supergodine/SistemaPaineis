@@ -12,12 +12,20 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+
 </head>
 
 
 <body class="dark-theme">
-    <div class="container-fluid mt-4 page" style="padding: 0;">
+    <div class="container-fluid mt-1 page" style="padding: 0;">
         <div class="header-painel" style="padding: 10px;">
+            <div class="logo">
+                <!-- Logotipo do aplicativo -->
+                <a href="{{ url_for('lista_paineis') }}">
+                <img src="{{ url_for('static', filename='imagens/logo.png') }}" alt="Logotipo" style="max-height: 60px;">
+                </a>
+            </div>
             <h1 class="text-center">{{ titulo_painel }}</h1>
             <a href="{{ url_for('lista_paineis') }}" class="btn btn-back btn-primary">
                 <i class="fas fa-arrow-left" style="margin-top: -10px;"></i> Voltar
@@ -42,7 +50,7 @@
                                 <thead>
                                     <tr>
                                         {% for coluna in titulos %}
-                                        <th scope="col">{{ coluna }}</th>
+                                        <th scope="col" >{{ coluna }} </th>
                                         {% endfor %}
                                     </tr>
                                 </thead>
@@ -54,7 +62,8 @@
                                     {% for resultado in pagina_dados %}
                                     <tr>
                                         {% for indice in indices_visiveis %}
-                                        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0;">
+                                        <td
+                                            style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; ">
                                             {{ resultado[indice]|safe }}
                                         </td>
                                         {% endfor %}
@@ -62,11 +71,12 @@
                                     {% endfor %}
                                     {% else %}
                                     <tr>
-                                        <td colspan="{{ titulos|length }}" class="text-center">Nenhum dado disponível nesta página.</td>
+                                        <td colspan="{{ titulos|length }}" class="text-center">Nenhum dado disponível
+                                            nesta página.</td>
                                     </tr>
                                     {% endif %}
                                 </tbody>
-                              
+
                             </table>
                         </div>
                     </div>
@@ -77,36 +87,41 @@
             <p class="text-center">Nenhum dado disponível para este painel.</p>
             {% endif %}
 
-            <!-- Dashboard cards -->
-            <div class="row" id="dashboard-container">
+            
+
+        
+
+        <footer class="footer"
+            style="display: flex; justify-content: align-items: center;  position: fixed; bottom: 0; width: 100%;">
+            <!-- Dashboard cards (esquerda) -->
+
+            <div class="d-flex" id="dashboard-container" style="white-space: nowrap; overflow-x: auto;">
                 {% for dashboard in dashboards %}
-                <div class="col-md-3 mb-3">
-                    <div class="card dashboard-card" id="card-{{ loop.index }}" data-cor="{{ dashboard.cor }}">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ dashboard.titulo }}: {{ dashboard.dados | join(', ') }}</h5>
-                        </div>
+                <div class="card dashboard-card" id="card-{{ loop.index }}" data-cor="{{ dashboard.cor }}"
+                    style="display: inline-block; margin: 0 10px;">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ dashboard.titulo }}: {{ dashboard.dados | join(', ') }}</h5>
                     </div>
                 </div>
                 {% endfor %}
             </div>
-
-            <!-- Cards das Legendagens -->
-            <div class="row" id="legenda-container">
+        
+            <!-- Cards das Legendagens (direita) -->
+            <div class="d-flex" id="legenda-container"
+                style="white-space: nowrap; overflow-x: auto; justify-content: flex-end;">
                 {% for legenda in legendas %}
-                <div class="col-md-6 mb-6 ">
-                    <div class="card legenda-card" id="legenda-{{ loop.index }}" data-cor="{{ legenda.cor }}">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ legenda.titulo }}</h5>
-                        </div>
+                <div class="card legenda-card" id="legenda-{{ loop.index }}" data-cor="{{ legenda.cor }}"
+                    style="display: inline-block; margin: 0 10px;">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ legenda.titulo }}</h5>
                     </div>
                 </div>
                 {% endfor %}
             </div>
+        </footer>
 
-            <footer class="footer">
-                <div class="row" id="footer-container" style="flex-wrap: wrap; justify-content: flex-start;">
-                </div>
-            </footer>
+
+
         </div>
 
         <script src="{{ url_for('static', filename='js/script.js') }}"></script>

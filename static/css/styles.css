@@ -9,19 +9,15 @@ body {
 
 body {
     background-color: #343a40;
-    /* Cor de fundo escura */
     color: #ffffff;
-    /* Texto branco para contraste */
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    /* Garante que o corpo ocupe toda a altura da tela */
     overflow-x: hidden;
 }
 
 main {
     flex: 1;
-    /* Faz o conteúdo principal ocupar o espaço restante */
     position: relative;
     z-index: 0;
 }
@@ -37,6 +33,12 @@ main {
     flex: 1;
     /* Faz o conteúdo principal ocupar o espaço restante */
 }
+
+/*inicio logo*/
+.logo{
+    padding: 10px;
+}
+/*fim logo*/
 
 /* Início Login */
 .login-body {
@@ -82,7 +84,7 @@ main {
 }
 
 .light-theme .btn-primary {
-    background: linear-gradient(45deg, #0a2f57, #00c6ff);
+    background:  #0a2f57;
     border-color: #007bff;
 }
 
@@ -112,7 +114,7 @@ main {
 }
 
 .dark-theme .btn-primary {
-    background-color: #007bff;
+    background-color: #18c4db;
 }
 
 .dark-theme .btn-secondary {
@@ -127,7 +129,7 @@ main {
 .table-responsive {
     flex-grow: 1;
     margin-bottom: 20px;
-    background-color: #02254a;
+    background: linear-gradient(to bottom right, #011731, #2182e9);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
     border-radius: 10px;
     height: 65vh;
@@ -153,6 +155,7 @@ main {
     padding: 0;
     text-align: left;
     vertical-align: middle;
+    
 }
 
 .table td {
@@ -176,8 +179,8 @@ main {
 
 
 .table thead th {
-    background: linear-gradient(45deg, #0a2f57, #00c6ff);
-    color: white;
+    background: #0a2f57;
+    color: rgb(255, 255, 255);
     text-align: center;
     white-space: nowrap;
     /*Previne quebra de linha */
@@ -205,45 +208,77 @@ main {
 
 /* Estilos do Rodapé */
 footer.footer {
-    padding: 20px;
-    /* Aumente o padding para deixar o rodapé mais espesso */
-    background-color: #2c2c2c;
-    color: white;
-    text-align: center;
+    display: flex;
+    justify-content: center;
+    /* Centraliza os cards horizontalmente */
+    align-items: center;
+    /* Centraliza os cards verticalmente */
+    padding: 10px;
+    /* Espaçamento interno do rodapé */
+    background-color: #1d1b1b;
+    /* Cor do rodapé */
+    position: fixed;
+    /* Mantém o rodapé fixo na parte inferior */
+    bottom: 0;
+    left: 0;
     width: 100%;
-    /* O rodapé ocupa toda a largura da página */
-    margin-top: auto;
-    /* Garante que o footer fique no final da página */
-    z-index: 0;
-    /* O rodapé tem um z-index menor, permitindo que os cards o sobrescrevam */
+    overflow-x: auto;
+    /* Adiciona barra de rolagem horizontal se necessário */
+    white-space: nowrap;
+    /* Impede que os elementos quebrem para a próxima linha */
+    z-index: 10;
+
 }
 
-/* Container do Dashboard */
-.dashboard-container {
-    position: relative;
-    /* Permite que os cards usem posicionamento absoluto dentro deste contêiner */
-    width: 100%;
-    height: auto;
-    /* Ajusta a altura automaticamente */
-    overflow: hidden;
-    /* Impede que os cards saiam da área visível do container */
+#dashboard-container,
+#legenda-container {
+    display: flex;
+    /* Ativa o Flexbox */
+    align-items: center;
+    /* Centraliza os itens verticalmente */
+    white-space: nowrap;
+    /* Impede quebra de linha */
+    overflow-x: auto;
+    /* Adiciona barra de rolagem horizontal, se necessário */
 }
 
 /* Cards do Dashboard */
-.dashboard-card {
+.dashboard-card,
+.legenda-card {
     color: #000;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1;
     margin: 10px;
-    cursor: move;
-    box-sizing: border-box;
-    overflow: hidden;
-    white-space: normal;
-    word-wrap: break-word;
+    /* Espaçamento entre os cards */
 }
 
-.card-body{
+/* Responsividade dos cards */
+@media (max-width: 768px) {
+    .dashboard-card {
+        max-width: 100%;
+        /* Os cards ficam maiores em telas menores */
+    }
+}
+.card.dashboard-card,
+.card.legenda-card {
+    color: #000;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin: 0 10px;
+    overflow: hidden;
+    /* Espaçamento entre os cards */
+    display: flex;
+    /* Garante que os cards fiquem lado a lado */
+    
+    max-width: 100%;
+}
+
+.card {
+    margin-bottom: 0;
+    
+}
+
+.card-body {
     padding: 5px 10px;
 }
 
@@ -262,25 +297,18 @@ footer.footer {
     /* Suporte para quebra de texto em várias linhas */
 }
 
-
-
-/* Estilos dos Cards das Legendagens */
-.legenda-card {
-    color: #000;
-    padding: 0;
-    margin: 0;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    box-sizing: border-box;
-    /* Inclui padding e borda no tamanho total */
-    overflow: hidden;
-    /* Impede que o conteúdo transborde */
-    cursor: move;
-    /* Mostra que o card pode ser arrastado */
-    z-index: 1;
-    /* Z-index maior para que os cards possam sobrescrever o rodapé */
-    min-height: 30px;
+.row.d-flex {
+    display: flex;
+    /* Ativa o Flexbox para o contêiner */
+    justify-content: center;
+    /* Centraliza horizontalmente */
+    align-items: center;
+    /* Alinha os itens no centro verticalmente */
+    flex-wrap: wrap;
+    /* Permite que os itens quebrem linha */
 }
+
+
 
 /* Texto do Card de Legenda */
 .legenda-card h5 {
@@ -296,6 +324,24 @@ footer.footer {
     display: -webkit-box;
     /* Suporte para quebra de texto em várias linhas */
 }
+
+.page-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    /* Garantir que a página tenha altura total */
+}
+
+/* Contêiner para os cards */
+.cards-container {
+    flex-grow: 1;
+    /* Ocupa o espaço disponível */
+    overflow-y: auto;
+    /* Adiciona rolagem se os cards excederem o tamanho da tela */
+    padding-bottom: 50px;
+    /* Deixe espaço para o rodapé */
+}
+
 
 
 
@@ -341,4 +387,16 @@ footer.footer {
 
 .lin-nome {
     width: 300px;
+}
+
+/* Tema Claro */
+body.light .modal-content {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+/* Tema Escuro */
+body.dark .modal-content {
+    background-color: #333333;
+    color: #ffffff;
 }
