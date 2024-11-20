@@ -13,6 +13,10 @@ $(document).ready(function () {
         localStorage.setItem('theme', $('body').hasClass('dark-theme') ? 'dark' : 'light');
     });
 
+    
+
+    
+
 
     /******************************************Inicio Painel **********************************/
 
@@ -164,7 +168,7 @@ $(document).ready(function () {
 
 /****************************************Inicio cards ***************************************/
 // Função para tornar os cards arrastáveis e salvar posições
-function tornarCardsArrastaveis(selector) {
+/*function tornarCardsArrastaveis(selector) {
     $(selector).draggable({
         containment: "body",
         stop: function (event, ui) {
@@ -195,7 +199,7 @@ function tornarCardsArrastaveis(selector) {
 
 // Torna todos os cards da dashboard e das legendas arrastáveis
 tornarCardsArrastaveis(".dashboard-card");
-tornarCardsArrastaveis(".legenda-card");
+tornarCardsArrastaveis(".legenda-card");*/
 
 // Altera a cor de fundo dos cards do dashboard
 $('.dashboard-card').each(function () {

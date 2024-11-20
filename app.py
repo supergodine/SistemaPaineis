@@ -99,6 +99,9 @@ def visualizar_painel(painel_id):
             """
             cursor.execute(colunas_query, {'painel_id': painel_id})
             colunas = cursor.fetchall()
+            
+            if colunas:
+                ds_atributo = colunas[0] or " "
 
             # Verifica se existem colunas cadastradas
             if not colunas:

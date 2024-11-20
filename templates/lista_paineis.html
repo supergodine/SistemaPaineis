@@ -83,7 +83,7 @@
                     <!-- Logotipo do aplicativo -->
                     <img src="{{ url_for('static', filename='imagens/logo.png') }}" alt="Logotipo" style="max-height: 60px;">
                 </div>
-                    <h2 class="mt-2" style="text-align: center;">Lista de Painéis</h2>
+                    <h2 class="mt-2" style="text-align: center;">PAINEIS INDICADORES DE GESTÃO</h2>
                     <div class="text-right" style="margin: 1rem;">
                         <button id="themeToggle" class="btn btn-secondary">
                             <i class="fas fa-sun" id="themeIcon"></i> <!-- Ícone de sol inicial -->
@@ -114,8 +114,8 @@
                             <tr>
                                 <td>{{ painel[0] }}</td>
                                 <td>{{ painel[1] }}</td>
-                                <td>{{ painel[2] }}</td>
-                                <td>{{ painel[3] }}</td>
+                                <td>{{ painel[2] or '' }} </td>
+                                <td>{{ painel[3] or ''}}</td>
                                 <td>{{ painel[4] }}</td>
                                 
                                 <td class="btn-cel" style="width: 100%;">
