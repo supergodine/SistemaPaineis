@@ -1,27 +1,288 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-import cx_Oracle
+import oracledb
 from datetime import datetime
 from flask import session
+from sqlalchemy import create_engine
+from sqlalchemy.sql import text
 import logging
-import re
+import concurrent.futures
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("Agg")
+from io import BytesIO
+import base64
+
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta'
 
+# Habilitar o modo "thick"
+oracledb.init_oracle_client(lib_dir=r"C:\Users\Diego\Desktop\oracle client\instantclient_23_7")
+
 # Configurações de banco de dados
-DB_HOST = 'conecta.grupoprimavera.med.br'
+DB_HOST = '172.16.0.227'
 DB_PORT = '1521'
 DB_SERVICE_NAME = 'prd'
 DB_USER = 'painel'
 DB_PASSWORD = 'P0T4syti'
+
+# Criar engine do SQLAlchemy (depois das configurações)
+engine = create_engine(f"oracle+oracledb://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/?service_name={DB_SERVICE_NAME}")
 
 # Configuração do logger
 logging.basicConfig(level=logging.INFO)
 
 # Função para conexão com o banco de dados
 def get_db_connection():
-    dsn = cx_Oracle.makedsn(DB_HOST, DB_PORT, service_name=DB_SERVICE_NAME)
-    return cx_Oracle.connect(user=DB_USER, password=DB_PASSWORD, dsn=dsn)
+    dsn = oracledb.makedsn(DB_HOST, DB_PORT, service_name=DB_SERVICE_NAME)
+    return oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=dsn)
+
+# ------------------------------------- Função gerar grafico ------------------------------
+def gerar_grafico(df, titulo, tipo, exibir_legenda=False, legendas=[], ax=None):
+    print("Função gerar_grafico() chamada")
+    print(f"Dados: Titulo: {titulo}, Tipo: {tipo}")
+    print(f"Dataframe: \n{df}")
+
+    try:
+        tipo = tipo.lower()
+        fig = None
+
+        if len(df.columns) == 1:
+            valores = df.iloc[:, 0].astype(float)
+            valores = valores[valores > 0]  # Remove valores zerados ou negativos
+
+            if tipo in ['pizza', 'rosca']:
+                if valores.empty:
+                    print("Erro: Não há valores válidos para o gráfico.")
+                    return None
+
+                if not ax:
+                    fig, ax = plt.subplots()
+
+                labels = df.index.astype(str) if not legendas else [legenda['ds_legenda'] for legenda in legendas]
+
+                # Criando gráfico de pizza
+                wedges, texts, autotexts = ax.pie(valores, labels=labels[:len(valores)], autopct='%1.1f%%', startangle=90)
+                ax.axis('equal')
+
+                # Adicionando o círculo ao centro do gráfico de rosca
+                if tipo == 'rosca':
+                    centro = plt.Circle((0, 0), 0.6, fc='white')
+                    ax.add_artist(centro)
+
+                elif tipo == 'card':
+                    fig, ax = plt.subplots(figsize=(2, 1))
+                    if df.empty:
+                        valor = "Sem valor"
+                    elif len(df) == 1:
+                        valor = df.iloc[0, 0]
+                    else:
+                        valor = df.iloc[:, 0].sum()
+                    ax.text(0.5, 0.5, str(valor), ha='center', va='center', fontsize=24, weight='bold')
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                    ax.set_frame_on(False)
+                else:
+                    print(f"Tipo de gráfico {tipo} não suportado com uma única coluna.")
+                    return None
+
+        elif len(df.columns) >= 2:
+            valores = df.iloc[:, 1].astype(float)
+            valores = valores[valores > 0]
+
+            if tipo in ['pizza', 'rosca'] :
+                if valores.empty:
+                    print("Erro: Não há valores válidos para o gráfico.")
+                    return None
+
+                if not ax:
+                    fig, ax = plt.subplots()
+
+                labels = df.iloc[:, 0].astype(str) if not legendas else [legenda['ds_legenda'] for legenda in legendas]
+
+                wedges, texts, autotexts = ax.pie(valores, labels=labels[:len(valores)], autopct='%1.1f%%', startangle=90)
+                ax.axis('equal')
+
+                if tipo == 'rosca':
+                    centro = plt.Circle((0, 0), 0.6, fc='white')
+                    ax.add_artist(centro)
+
+            elif tipo in ['barra', 'barras']:
+                if not ax:
+                    fig, ax = plt.subplots()
+                ax.bar(df.iloc[:, 0], valores) #alterado para receber os valores do eixo x
+
+            elif tipo == 'linha' or tipo == 'linhas':
+                if not ax:
+                    fig, ax = plt.subplots()
+                ax.plot(df.iloc[:, 0], valores, marker='o', linestyle='-')
+                ax.set_ylabel('Valores')
+                ax.set_xlabel('Categorias')
+                ax.tick_params(axis='x', rotation=45)
+                ax.grid(True)  # Adiciona grade para melhor visualização
+            elif tipo == 'barras_horizontais':
+                if not ax:
+                    fig, ax = plt.subplots()
+                ax.barh(df.iloc[:, 0], valores) #alterado para barras horizontais
+                ax.set_ylabel('Categorias')
+                ax.set_xlabel('Valores')
+            elif tipo == 'dispersao':
+                if not ax:
+                    fig, ax = plt.subplots()
+                ax.scatter(df.iloc[:, 0], valores) #alterado para dispersão
+                ax.set_ylabel('Valores')
+                ax.set_xlabel('Categorias')
+            elif tipo == 'area':
+                if not ax:
+                    fig, ax = plt.subplots()
+                ax.fill_between(df.iloc[:, 0], valores) #alterado para area
+                ax.set_ylabel('Valores')
+                ax.set_xlabel('Categorias')
+            elif tipo == 'card':
+                fig, ax = plt.subplots(figsize=(2, 1))
+                if df.empty:
+                    valor = "Sem valor"
+                else:
+                    valor = df.iloc[:, 1].sum()
+                ax.text(0.5, 0.5, str(valor), ha='center', va='center', fontsize=24, weight='bold')
+                ax.set_xticks([])
+                ax.set_yticks([])
+                ax.set_frame_on(False)    
+
+        if fig and exibir_legenda:
+            ax.legend(loc='best')
+
+        if fig:
+            plt.title(titulo)
+            buf = BytesIO()
+            plt.savefig(buf, format='png', bbox_inches='tight')
+            plt.close(fig)
+            buf.seek(0)
+            image_base64 = base64.b64encode(buf.read()).decode('utf-8')
+            print("Imagem gerada com sucesso!")
+            return image_base64
+        else:
+            print("Erro: Nenhuma figura gerada.")
+            return None
+
+    except Exception as e:
+        print(f"Erro ao gerar gráfico: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+# ------------------------------------- fim Função gerar grafico ------------------------------
+# Função auxiliar para gerar os graficos em threads
+@app.route('/obter_dados_graficos/<int:painel_id>', methods=['GET'])
+def obter_dados_graficos(painel_id):
+    try:
+        engine = create_engine(
+            f"oracle+oracledb://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/?service_name={DB_SERVICE_NAME}"
+        )
+
+        with engine.connect() as conn:
+            # Obter título do painel
+            painel_query = text(""" 
+                SELECT ds_titulo_painel FROM hp_painel WHERE nr_sequencia = :painel_id
+            """)
+            painel = conn.execute(painel_query, {'painel_id': painel_id}).fetchone()
+
+            if not painel:
+                return jsonify({"error": "Painel não encontrado"}), 404
+
+            ds_titulo_painel = painel[0] or " "
+
+            # Obter dados dos gráficos
+            graficos_query = text(""" 
+                SELECT nr_sequencia, ds_titulo, ds_sql, nr_seq_apresentacao, ds_tipo_grafico
+                FROM hp_painel_grafico
+                WHERE fk_nr_seq_painel = :painel_id
+                ORDER BY nr_seq_apresentacao
+            """)
+            graficos = conn.execute(graficos_query, {'painel_id': painel_id}).fetchall()
+
+            if not graficos:
+                return jsonify({"error": "Nenhum gráfico encontrado para o painel"}), 404
+
+            # Log dos dados retornados
+            print(f"Dados dos gráficos retornados: {graficos}")
+
+            graficos_data = {}
+            for nr_sequencia, titulo, sql, num_apres, tipo in graficos:
+                print(f"Processando gráfico: {nr_sequencia}, Tipo: {tipo}, SQL: {sql}")
+
+                if not sql or not sql.strip():
+                    graficos_data[f'grafico_{nr_sequencia}'] = {
+                        'image': None,
+                        'titulo': titulo,
+                        'tipo': tipo,
+                        'error': 'SQL vazio para este gráfico.'
+                    }
+                    continue
+
+                # Obtenha as legendas associadas ao gráfico
+                legendas_query = text("""
+                SELECT l.ds_legenda, l.ds_cor
+                FROM hp_painel_legenda l
+                JOIN hp_painel_grafico_legenda gl ON l.nr_sequencia = gl.fk_nr_seq_legenda
+                WHERE gl.fk_nr_seq_grafico = :nr_sequencia
+                """)
+
+                legendas_result = conn.execute(legendas_query, {'nr_sequencia': nr_sequencia}).fetchall()
+                legendas = [{'ds_legenda': legenda[0], 'ds_cor': legenda[1]} for legenda in legendas_result]
+
+                try:
+                    df = pd.read_sql_query(text(sql), con=engine)
+
+                    # Verificação do DataFrame
+                    print(f"DataFrame carregado: \n{df}")
+
+                    if df.empty:
+                        graficos_data[f'grafico_{nr_sequencia}'] = {
+                            'image': None,
+                            'titulo': titulo,
+                            'tipo': tipo,
+                            'error': 'Sem dados para gerar o gráfico.'
+                        }
+                        continue
+
+                    # Garantir que temos pelo menos 2 colunas
+                    if len(df.columns) < 2:
+                        print(f"DataFrame com menos de 2 colunas. Colunas: {df.columns}")
+                        graficos_data[f'grafico_{nr_sequencia}'] = {
+                            'image': None,
+                            'titulo': titulo,
+                            'tipo': tipo,
+                            'error': 'O DataFrame não possui colunas suficientes para gerar o gráfico.'
+                        }
+                        continue
+
+                    # Gerar o gráfico
+                    image_base64 = gerar_grafico(df, titulo, tipo, len(legendas) > 0, legendas)
+
+                    graficos_data[f'grafico_{nr_sequencia}'] = {
+                        'image': image_base64,
+                        'titulo': titulo,
+                        'tipo': tipo,
+                        'legendas' : legendas
+                    }
+
+                except Exception as e:
+                    print(f"Erro ao processar gráfico {nr_sequencia}: {e}")
+                    graficos_data[f'grafico_{nr_sequencia}'] = {
+                        'image': None,
+                        'titulo': titulo,
+                        'tipo': tipo,
+                        'error': f"Erro ao executar SQL: {str(e)}"
+                    }
+            print(f"graficos_data: {graficos_data}")
+            return jsonify(graficos_data)
+
+    except Exception as e:
+        print(f"Erro inesperado: {e}")
+        return jsonify({"error": "Erro inesperado"}), 500
 
 # ---------------- INÍCIO Funções de Autenticação ----------------
 def autenticar_usuario(username, password):
@@ -63,6 +324,18 @@ def lista_paineis():
         paineis = cursor.fetchall()
         return render_template('lista_paineis.html', paineis=paineis)
 
+# Rota para atualizar o per_page dinamicamente
+@app.route('/atualizar_per_page', methods=['POST'])
+def atualizar_per_page():
+    print(request.form)
+    try:
+        per_page = int(request.form['per_page'])
+    except ValueError:
+        per_page = 12
+    session['per_page'] = per_page
+    return jsonify({'success': True})
+
+# Rota visualizar painel
 # Rota visualizar painel
 @app.route('/visualizar_painel/<int:painel_id>', methods=['GET'])
 def visualizar_painel(painel_id):
@@ -71,7 +344,7 @@ def visualizar_painel(painel_id):
 
     # Consulta para obter o SQL, título do painel, tempo de rolagem e tempo de atualização
     sql_query = """
-        SELECT ds_titulo_painel, ds_sql, qt_segundos_rolagem, qt_segundos_atualizacao 
+        SELECT ds_titulo_painel, ds_sql, qt_segundos_rolagem, qt_segundos_atualizacao, ds_sql_filtro, ie_tipo_filtro 
         FROM hp_painel
         WHERE nr_sequencia = :painel_id
     """
@@ -80,65 +353,97 @@ def visualizar_painel(painel_id):
     painel = cursor.fetchone()
 
     if painel:
-        ds_titulo_painel = painel[0] or " " # Título do painel
-        sql_body_query = painel[1]  or " "  # SQL para obter os dados do painel
+        ds_titulo_painel = painel[0] or " "  # Título do painel
+        sql_body_query = painel[1] or " "  # SQL para obter os dados do painel
         segundos_rolagem = painel[2] or 10  # Se o campo estiver nulo, usa 10 segundos como padrão
         segundos_atualizacao = painel[3] or 30  # Se o campo estiver nulo, usa 30 segundos como padrão
-
+        sql_filtro = painel[4] or "" # SQL do filtro
+        tipo_filtro = painel[5] or "" # Tipo do filtro (unico ou multiselecao)
+        # Obtém per_page da sessão ou usa o valor padrão
+        
+        per_page = session.get('per_page', 12)
+        total = 0 # Define total aqui, antes do try
         try:
             # Obter títulos e atributos das colunas cadastradas
             colunas_query = """
             SELECT
-                ds_titulo_coluna, ds_atributo, nm_class,  qt_tamanho, nr_seq_apresentacao, ie_hidden, nr_sequencia,  dt_atualizacao, dt_criacao, nm_usuario_atualizacao, nm_usuario_criacao,  ie_situacao, fk_nr_seq_painel
-                FROM
-                    hp_painel_coluna
-                        WHERE
-                        fk_nr_seq_painel = :painel_id
-                        ORDER BY
-                            nr_seq_apresentacao
+                ds_titulo_coluna, ds_atributo, nm_class,  qt_tamanho, nr_seq_apresentacao, ie_hidden, nr_sequencia,  dt_atualizacao, dt_criacao, nm_usuario_atualizacao, nm_usuario_criacao,  ie_situacao, fk_nr_seq_painel, nvl(DS_COR_TEXTO,'#000000' ) AS DS_COR_TEXTO, nvl(QT_TAMANHO_FONTE,14) AS QT_TAMANHO_FONTE, nvl(DS_ALINHAMENTO,'center') AS DS_ALINHAMENTO, nvl(IE_FONT_BOLD,'N') AS IE_FONT_BOLD, nvl(IE_FONT_ITALIC,'N') AS IE_FONT_ITALIC
+            FROM
+                hp_painel_coluna
+            WHERE
+                fk_nr_seq_painel = :painel_id
+            ORDER BY
+                nr_seq_apresentacao
             """
             cursor.execute(colunas_query, {'painel_id': painel_id})
             colunas = cursor.fetchall()
             
-            if colunas:
-                ds_atributo = colunas[0] or " "
-
-            # Verifica se existem colunas cadastradas
+            #tratamento das colunas
+            colunas_tratadas = []
+            for coluna in colunas:
+                coluna_tratada = []
+                for valor in coluna:
+                    coluna_tratada.append(valor if valor is not None else "")
+                colunas_tratadas.append(coluna_tratada)
+            
             if not colunas:
                 flash("Nenhuma coluna cadastrada para este painel.", "danger")
                 return redirect(url_for('lista_paineis'))
             
             # Separar colunas visíveis e ocultas
             colunas_visiveis = [coluna for coluna in colunas if coluna[5] != 'H']  # Colunas onde ie_hidden != 'H'
-            colunas_ocultas = [coluna for coluna in colunas if coluna[5] == 'H']  # Colunas onde ie_hidden == 'H'
-
-            
 
             # Obter títulos e atributos
-            titulos_visiveis = [coluna[0] for coluna in colunas_visiveis]  # Títulos das colunas visíveis
-            atributos_visiveis = [coluna[1] for coluna in colunas_visiveis]  # Atributos das colunas visíveis
-            atributos_ocultos = [coluna[1] for coluna in colunas_ocultas]  # Atributos das colunas ocultas
-
-            # Todos os atributos (visíveis + ocultos) devem ser incluídos no SQL
-            todos_atributos = atributos_visiveis + atributos_ocultos
-            # Adicionar tratamento para valores NULL usando COALESCE
+            titulos_visiveis = [{'titulo': coluna[0], 'tamanho': coluna[3]} for coluna in colunas_visiveis]
+            
+            # Obter todos os atributos (visíveis + ocultos)
+            todos_atributos = [coluna[1] for coluna in colunas]
             atributos_tratados = [f"nvl({atributo}, '') AS {atributo}" for atributo in todos_atributos]
 
             # Montar o SQL ajustado
             sql_body_query = f"SELECT {', '.join(atributos_tratados)} FROM ({sql_body_query})"
 
-
             # Executa o SQL modificado para obter os dados do painel
+            # Obter os valores do filtro
+            valores_filtro = []
+            if sql_filtro:
+                cursor.execute(sql_filtro)
+                valores_filtro = cursor.fetchall()
+
+            # Obter os valores selecionados do filtro (se houver)
+            filtro_selecionado = request.args.getlist('filtro')
+
+            # Construir a cláusula WHERE com base no tipo de filtro e nos valores selecionados
+            where_clause = ""
+            if filtro_selecionado:
+                if tipo_filtro == "unico":
+                    where_clause = f" WHERE cd_convenio = '{filtro_selecionado[0]}'"
+                elif tipo_filtro == "multiselecao":
+                    where_clause = f" WHERE cd_convenio IN ({','.join([f"'{v}'" for v in filtro_selecionado])})"
+
+            # Adicionar a cláusula WHERE à consulta principal
+            sql_body_query = sql_body_query.replace("@sql_where", where_clause)
+
             cursor.execute(sql_body_query)
             resultados = cursor.fetchall()
 
-            # Não realizar paginação manual aqui, enviar todos os resultados para o template
-            per_page = 12  # Define quantos resultados por página no carrossel
-            total = len(resultados)
+            total = len(resultados) # Define o total aqui, dentro do try
+
+            # Transformar resultados para substituir None por strings vazias
+            def substituir_none_por_vazio(resultados, cursor):
+                return [
+                    {desc[0]: (valor if valor is not None else '') for desc, valor in zip(cursor.description, linha)}
+                    for linha in resultados
+                ]
+
+            # Aplicar a transformação
+            resultados_tratados = substituir_none_por_vazio(resultados, cursor)
+            print("Resultados após transformação:", resultados_tratados)
             
+        
             # Consulta para obter as regras de cor
             regras_query = """
-                SELECT nr_sequencia, ds_valor, ds_cor, ie_icon_replace, nm_icon, ie_celula_linha, nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao
+                SELECT nr_sequencia, ds_valor, ds_cor, ie_icon_replace, nm_icon, ie_celula_linha, nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao, (SELECT DS_TITULO_COLUNA FROM painel.hp_painel_coluna WHERE nr_sequencia = fk_nr_seq_painel_coluna ) as coluna
                 FROM hp_painel_regra_cor
                 WHERE fk_nr_seq_painel_coluna IN (
                     SELECT nr_sequencia FROM hp_painel_coluna WHERE fk_nr_seq_painel = :painel_id)
@@ -148,8 +453,9 @@ def visualizar_painel(painel_id):
 
             # Coleta das regras em uma lista
             regras_resultados = []
-            for regra in regras:
-                nr_sequencia, ds_valor, ds_cor, ie_icon_replace, nm_icon, ie_celula_linha, nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao = regra
+            for idx, regra in enumerate(regras):
+                print(f"Posição {idx}: {regra}")  # Exibe a posição e os valores da tupla
+                nr_sequencia, ds_valor, ds_cor, ie_icon_replace, nm_icon, ie_celula_linha, nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao, coluna = regra
 
                 regras_resultados.append({
                     'nr_sequencia': nr_sequencia,
@@ -162,9 +468,10 @@ def visualizar_painel(painel_id):
                     'nm_usuario_atualizacao': nm_usuario_atualizacao if nm_usuario_atualizacao is not None else '',
                     'nm_usuario_criacao': nm_usuario_criacao if nm_usuario_criacao is not None else '',
                     'dt_criacao': dt_criacao if dt_criacao is not None else '',
-                    'dt_atualizacao': dt_atualizacao if dt_atualizacao is not None else ''
+                    'dt_atualizacao': dt_atualizacao if dt_atualizacao is not None else '',
+                    'coluna': coluna if coluna is not None else ''
                 })
-
+            
             # Adicionar a consulta para os dashboards
             dashboards_query = """
                 SELECT ds_titulo, ds_cor, ds_sql
@@ -215,102 +522,103 @@ def visualizar_painel(painel_id):
                     'titulo': ds_legendas,
                     'cor': ds_cor_legendas
                 })
-
-            # Aplicação das regras às linhas e células
-            # Cria um dicionário para mapear ds_valor para ds_cor para 'C' e 'L' regras
+            
+            
+        # Monta o dicionário com as regras, separando 'C' (célula) e 'L' (linha)
             regras_por_valor = {}
             for regra in regras_resultados:
                 ds_valor = regra['ds_valor']
                 ds_cor = regra['ds_cor']
-                ie_celula_linha = regra['ie_celula_linha']
+                ie_celula_linha = regra['ie_celula_linha']  # 'C' ou 'L'
                 ie_icon_replace = regra['ie_icon_replace']
                 nm_icon = regra['nm_icon']
+                coluna = regra['coluna']  # Coluna de gatilho
 
-                if ie_celula_linha == 'C':
-                    if ds_valor not in regras_por_valor:
-                        regras_por_valor[ds_valor] = {}
-                    regras_por_valor[ds_valor]['C'] = {
-                        'ds_cor': ds_cor,
-                        'ie_icon_replace': ie_icon_replace,
-                        'nm_icon': nm_icon
-                    }
-                elif ie_celula_linha == 'L':
-                    if ds_valor not in regras_por_valor:
-                        regras_por_valor[ds_valor] = {}
-                    regras_por_valor[ds_valor]['L'] = {
-                        'ds_cor': ds_cor,
-                        'ie_icon_replace': ie_icon_replace,
-                        'nm_icon': nm_icon
-                    }
+                print(f"Processando regra - Valor: {ds_valor}, Cor: {ds_cor}, Tipo: {ie_celula_linha}, Ícone: {nm_icon}, Coluna: {coluna}")
 
-            # Processa cada resultado aplicando as regras
-            for index in range(len(resultados)):
-                linha_atual = list(resultados[index])  # Converte a tupla em lista
+                if ds_valor not in regras_por_valor:
+                    regras_por_valor[ds_valor] = {}
+                regras_por_valor[ds_valor][ie_celula_linha] = {
+                    'ds_cor': ds_cor,
+                    'ie_icon_replace': ie_icon_replace,
+                    'nm_icon': nm_icon,
+                    'coluna': coluna  # Guardar o nome da coluna de gatilho
+                }
 
-                # Supõe que a primeira coluna contém o ds_valor para correspondência
-                ds_valor_linha = linha_atual[0] if len(linha_atual) > 0 else ''
+            # Obter os nomes das colunas para encontrar o índice da coluna de gatilho
+            nomes_colunas = [coluna[0] for coluna in colunas]
+            print(f"Nomes das colunas disponíveis: {nomes_colunas}")
 
-                # Aplica as regras 'C' para células específicas
-                for col_index, valor in enumerate(linha_atual):
-                    if valor in regras_por_valor:
-                        regra_celula = regras_por_valor[valor].get('C', None)
-                        if regra_celula:
-                            ds_cor = regra_celula['ds_cor']
-                            ie_icon_replace = regra_celula['ie_icon_replace']
-                            nm_icon = regra_celula['nm_icon']
+            # Agora, calculando o índice da coluna de gatilho dinamicamente
+            try:
+                gatilho_linha_index = nomes_colunas.index(coluna)  # Encontrar o índice da coluna de gatilho
+                print(f"A coluna '{coluna}' está na posição {gatilho_linha_index}")
+            except ValueError:
+                print(f"ERRO: A coluna '{coluna}' não foi encontrada!")
+                gatilho_linha_index = -1  # Define um valor de fallback caso não encontre a coluna
 
-                            if ie_icon_replace == 'S':
-                                if nm_icon  != '' or nm_icon == None or nm_icon == 'null':
-                                    # Substitui o valor da célula pelo ícone e aplica a cor
-                                    linha_atual[col_index] = f'<i class="{nm_icon}" style="color:{ds_cor}"></i>'
-                                    print(" valor: " + valor)
-                                else:
-                                    # Aplica apenas a cor, sem ícone e sem valor
-                                    linha_atual[col_index] = f'<span class="celula-cor" style="background-color:{ds_cor};" data-color="{ds_cor}"></span>'
+            # Faz apenas UM loop, aplicando as regras de célula ou linha
+            for idx, row in enumerate(resultados):
+                row_list = list(row)
+                print(f"Processando linha {idx}: {row_list}")
+
+                # 1) Verifica se há regra de linha para o valor na coluna de gatilho
+                valor_gatilho_linha = row_list[gatilho_linha_index] if gatilho_linha_index >= 0 else None
+                print(f"Valor de gatilho na linha {idx}: {valor_gatilho_linha}")
+                
+                line_rule = None
+                if valor_gatilho_linha in regras_por_valor and 'L' in regras_por_valor[valor_gatilho_linha]:
+                    line_rule = regras_por_valor[valor_gatilho_linha]['L']
+                    print(f"Regra de linha encontrada para {valor_gatilho_linha}: {line_rule}")
+
+                # 2) Percorre cada coluna para decidir se aplica regra de célula ou de linha
+                for col_index, valor_celula in enumerate(row_list):
+                    cell_rule = None
+                    if valor_celula in regras_por_valor and 'C' in regras_por_valor[valor_celula]:
+                        cell_rule = regras_por_valor[valor_celula]['C']
+                        print(f"Regra de célula encontrada na coluna {col_index} para valor {valor_celula}: {cell_rule}")
+
+                    if cell_rule:
+                        ds_cor = cell_rule['ds_cor']
+                        ie_icon_replace = cell_rule['ie_icon_replace']
+                        nm_icon = cell_rule['nm_icon']
+
+                        if ie_icon_replace == 'S':
+                            if nm_icon and nm_icon.strip() not in [None, '', ' ', 'null']:
+                                row_list[col_index] = f'<i class="formatado-celula {nm_icon}" style="color:{ds_cor}"></i>'
                             else:
-                                # Aplica a cor ao valor original da célula
-                                linha_atual[col_index] = f'<span class="celula-cor" style="background-color:{ds_cor}; width: auto; height: auto; display: block; padding: 5px;">{valor}</span>'
+                                row_list[col_index] = f'<span class="formatado-celula celula-cor" style="background-color:{ds_cor}; display:block; padding:5px; width:100%; height:100%">&nbsp;</span>'
+                        else:
+                            row_list[col_index] = f'<span class="formatado-celula celula-cor" style="background-color:{ds_cor}; display:block; padding:5px; width:100%; height:100%">{valor_celula}</span>'
+                    elif line_rule:
+                        ds_cor = line_rule['ds_cor']
+                        ie_icon_replace = line_rule['ie_icon_replace']
+                        nm_icon = line_rule['nm_icon']
 
-                # Atualiza os resultados com as alterações da célula
-                resultados[index] = tuple(linha_atual)  # Converte a lista de volta para tupla
-
-                # Aplica a regra para a linha inteira 'L' somente se a célula não estiver formatada
-                if ds_valor_linha in regras_por_valor:
-                    regra_linha = regras_por_valor[ds_valor_linha].get('L', '')
-                    if regra_linha:
-                        ds_cor = regra_linha['ds_cor']
-                        ie_icon_replace = regra_linha['ie_icon_replace']
-                        nm_icon = regra_linha['nm_icon']
-
-                        for col_index in range(len(linha_atual)):
-                            # Verifica se a célula já foi formatada por uma regra de célula
-                            if not ('celula-cor' in str(resultados[index][col_index])):
-                                if ie_icon_replace == 'S':
-                                    if nm_icon  != '' or nm_icon == None or nm_icon == '(null)':
-                                        # Substitui a célula pelo ícone e aplica a cor
-                                        linha_atual[col_index] = f'<i class="{nm_icon}" style="color:{ds_cor}"></i>'
-                                        print('teste icon: ' + nm_icon + valor)
-                                    else:
-                                        # Aplica apenas a cor, sem valor
-                                        linha_atual[col_index] = f'<span class="linha-cor" style="background-color:{ds_cor};"></span>'
-                                        
-                                else:
-                                    # Aplica a cor se não houver formatação de célula
-                                    linha_atual[col_index] = f'<span class="linha-cor" style="background-color:{ds_cor}; width: auto; height: auto; display: block; padding: 5px;">{linha_atual[col_index]}</span>'
-                            #print("teste linha", ds_cor)
-                        # Atualiza os resultados novamente após a aplicação da regra de linha
-                        resultados[index] = tuple(linha_atual)  # Converte a lista de volta para tupla
+                        if ie_icon_replace == 'S':
+                            if nm_icon and nm_icon.strip() not in [None, '', ' ', 'null']:
+                                row_list[col_index] = f'<i class="formatado-linha {nm_icon}" style="color:{ds_cor}"></i>'
+                            else:
+                                row_list[col_index] = f'<span class="formatado-linha linha-cor" style="background-color:{ds_cor}; display:block; padding:5px;">&nbsp;</span>'
+                        else:
+                            row_list[col_index] = f'<span class="formatado-linha linha-cor" style="background-color:{ds_cor}; display:block; padding:5px;">{valor_celula if valor_celula not in [None, '', ' '] else "&nbsp;"}</span>'
+                    else:
+                        row_list[col_index] = valor_celula
+                
+                print(f"Linha {idx} após aplicação das regras: {row_list}")
+                resultados[idx] = tuple(row_list)
 
                     
 
 
-        except cx_Oracle.DatabaseError as e:
+        except oracledb.DatabaseError as e:
             flash(f"Erro ao executar o SQL do painel: {str(e)}", "danger")
             return redirect(url_for('lista_paineis'))
 
         finally:
             cursor.close()
             connection.close()
+        
         indices_visiveis = [i for i, coluna in enumerate(colunas) if coluna[5] != 'H']  # Índices das colunas visíveis
         return render_template('visualizar_painel.html',
                             resultados=resultados,  # Enviar todos os resultados
@@ -324,9 +632,12 @@ def visualizar_painel(painel_id):
                             segundos_atualizacao=segundos_atualizacao,
                             dashboards=dashboards_resultados,  # Passar dashboards e resultados para o template
                             legendas=legendas_resultados,
-                            regras=regras_resultados)  # Passar as regras para o template
+                            regras=regras_resultados,  # Passar as regras para o template
+                            colunas=colunas_tratadas)
     else:
         return "Painel não encontrado", 404
+    
+
 
 # Rota cadastrar painel
 @app.route('/cadastrar_painel', methods=['GET', 'POST'])
@@ -341,6 +652,8 @@ def cadastrar_painel():
         dt_criacao = datetime.now()
         nm_usuario_criacao = "DMMSANTOS"
         ie_situacao = 'A'
+        sql_filtro = request.form.get('sql_filtro')
+        tipo_filtro = request.form.get('tipo_filtro')
 
         with get_db_connection() as connection:
             cursor = connection.cursor()
@@ -352,10 +665,10 @@ def cadastrar_painel():
                 cursor.execute(""" 
                     INSERT INTO hp_painel (nr_sequencia, ds_titulo_painel, ds_observacao, qt_segundos_rolagem, 
                                         qt_segundos_atualizacao, ds_sql, dt_atualizacao, dt_criacao, 
-                                        nm_usuario_criacao, ie_situacao)
-                    VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10)
+                                        nm_usuario_criacao, ie_situacao, ds_sql_filtro, ie_tipo_filtro)
+                    VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12)
                 """, (painel_id, titulo, descricao, segundos_rolagem, segundos_atualizacao, 
-                    sql_query, dt_atualizacao, dt_criacao, nm_usuario_criacao, ie_situacao))
+                    sql_query, dt_atualizacao, dt_criacao, nm_usuario_criacao, ie_situacao, sql_filtro, tipo_filtro))
 
                 connection.commit()
                 flash("Painel cadastrado com sucesso!")
@@ -363,7 +676,7 @@ def cadastrar_painel():
                 # Redirecionar para a rota editar_painel com o painel_id
                 return redirect(url_for('editar_painel', painel_id=painel_id))
                 
-            except cx_Oracle.IntegrityError as e:
+            except oracledb.IntegrityError as e:
                 error, = e.args
                 if error.code == 1:  # Para ORA-00001 (violação de chave primária)
                     flash("Erro: já existe um painel com este ID.", "danger")
@@ -371,7 +684,7 @@ def cadastrar_painel():
                     flash(f"Erro ao cadastrar painel: {str(e)}", "danger")
 
     return render_template('cadastrar_painel.html')
-
+#rota editar painel
 @app.route('/editar_painel/<int:painel_id>', methods=['GET', 'POST'])
 def editar_painel(painel_id):
     # Se o método for POST, o painel está sendo salvo
@@ -382,6 +695,8 @@ def editar_painel(painel_id):
         qt_segundos_rolagem = request.form.get('qt_segundos_rolagem')
         qt_segundos_atualizacao = request.form.get('qt_segundos_atualizacao')
         ds_sql = request.form.get('ds_sql')
+        sql_filtro = request.form.get('sql_filtro')
+        tipo_filtro = request.form.get('tipo_filtro')
 
          # Validar se ds_titulo_painel não está vazio
         if not ds_titulo_painel:
@@ -399,8 +714,10 @@ def editar_painel(painel_id):
                     qt_segundos_atualizacao = :4,
                     ds_sql = :5,
                     dt_atualizacao = SYSDATE,
-                    nm_usuario_atualizacao = :6
-                WHERE nr_sequencia = :7
+                    nm_usuario_atualizacao = :6,
+                    ds_sql_filtro = :7,
+                    ie_tipo_filtro = :8
+                WHERE nr_sequencia = :9
             """, (
                 ds_titulo_painel,
                 ds_observacao,
@@ -408,6 +725,8 @@ def editar_painel(painel_id):
                 qt_segundos_atualizacao,
                 ds_sql,
                 "DMMSANTOS",  # Substitua pelo nome de usuário adequado
+                sql_filtro,
+                tipo_filtro,
                 painel_id
             ))
             connection.commit()
@@ -419,7 +738,7 @@ def editar_painel(painel_id):
     with get_db_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("""
-            SELECT ds_titulo_painel, ds_observacao, qt_segundos_rolagem, qt_segundos_atualizacao, ds_sql 
+            SELECT ds_titulo_painel, ds_observacao, qt_segundos_rolagem, qt_segundos_atualizacao, ds_sql,ds_sql_filtro, ie_tipo_filtro 
             FROM hp_painel 
             WHERE nr_sequencia = :1
         """, (painel_id,))
@@ -431,16 +750,23 @@ def editar_painel(painel_id):
 
         # Buscar colunas associadas ao painel
         cursor.execute("""
-            SELECT nr_sequencia, ds_titulo_coluna, ds_atributo, nvl(nm_class,' ') as nm_class, qt_tamanho, nr_seq_apresentacao, nvl(ie_hidden,' ') as ie_hidden 
+            SELECT nr_sequencia, ds_titulo_coluna, ds_atributo, nvl(nm_class,' ') as nm_class, qt_tamanho, nr_seq_apresentacao, nvl(ie_hidden,' ') as ie_hidden, nvl(QT_TAMANHO_FONTE, 14) as QT_TAMANHO_FONTE, nvl(DS_COR_TEXTO, '#000000') as DS_COR_TEXTO, nvl(DS_ALINHAMENTO, 'left') as DS_ALINHAMENTO, nvl(IE_FONT_BOLD,' ') as IE_FONT_BOLD, nvl(IE_FONT_ITALIC,' ') as IE_FONT_ITALIC
             FROM hp_painel_coluna
             WHERE fk_nr_seq_painel = :1
             ORDER BY nr_seq_apresentacao
         """, (painel_id,))
         colunas = cursor.fetchall()
+        
+        colunas_tratadas = []
+        for coluna in colunas:
+            coluna_tratada = []
+            for valor in coluna:
+                coluna_tratada.append(valor if valor is not None else "")
+            colunas_tratadas.append(coluna_tratada)
 
         # Buscar dashboards associados ao painel
         cursor.execute("""
-            SELECT nr_sequencia, ds_titulo, ds_sql, ds_cor 
+            SELECT nr_sequencia, ds_titulo, ds_sql, ds_cor, nvl(QT_TAMANHO_FONTE, 14) as QT_TAMANHO_FONTE, nvl(DS_COR_TEXTO, '#000000') as DS_COR_TEXTO, nvl(DS_ALINHAMENTO, 'center') as DS_ALINHAMENTO, nvl(IE_FONT_BOLD,' ') as IE_FONT_BOLD, nvl(IE_FONT_ITALIC,' ') as IE_FONT_ITALIC
             FROM hp_painel_dashboard 
             WHERE fk_nr_seq_painel = :1
         """, (painel_id,))
@@ -456,13 +782,22 @@ def editar_painel(painel_id):
 
         # Buscar regras de cores associadas ao painel
         cursor.execute("""
-            SELECT nr_sequencia, ds_valor, ds_cor, nvl(ie_icon_replace,' ') as ie_icon_replace, nm_icon 
+            SELECT nr_sequencia, ds_valor, ds_cor, nvl(ie_icon_replace,' ') as ie_icon_replace, nm_icon, ie_celula_linha, nvl(nm_class,' ') as nm_class, nm_usuario_atualizacao, nm_usuario_criacao, dt_criacao, dt_atualizacao, (SELECT DS_TITULO_COLUNA FROM painel.hp_painel_coluna WHERE nr_sequencia = fk_nr_seq_painel_coluna ) as coluna
             FROM hp_painel_regra_cor 
             WHERE fk_nr_seq_painel_coluna IN (
                 SELECT nr_sequencia FROM hp_painel_coluna WHERE fk_nr_seq_painel = :1
             )
         """, (painel_id,))
         regras = cursor.fetchall()
+        
+        # Buscar graficos associados ao painel
+        cursor.execute("""
+            SELECT nr_sequencia, ds_titulo, ds_sql, nr_seq_apresentacao, ds_tipo_grafico
+            FROM hp_painel_grafico
+            WHERE fk_nr_seq_painel = :1
+        """,(painel_id,))
+        graficos = cursor.fetchall()
+
 
     return render_template(
         'editar_painel.html',
@@ -471,20 +806,12 @@ def editar_painel(painel_id):
         dashboards=dashboards,
         legendas=legendas,
         regras=regras,
+        graficos=graficos,
         painel_id=painel_id
+        
     )
 
 
-# Rota para excluir painel
-#@app.route('/excluir_painel/<int:painel_id>', methods=['POST'])
-#def excluir_painel(painel_id):
-   # with get_db_connection() as connection:
-    #    cursor = connection.cursor()
-     #   cursor.execute("DELETE FROM hp_painel WHERE nr_sequencia = :1", (painel_id,))
-      #  connection.commit()
-       # flash("Painel excluído com sucesso!")
-       # return redirect(url_for('lista_paineis'))
-       
 @app.route('/excluir_painel', methods=['POST'])
 def excluir_painel():
     painel_id = request.form.get('nr_sequencia')
@@ -627,21 +954,26 @@ def duplicar_painel(painel_id):
                # print(f"Inserindo dashboard: nr_sequencia={novo_dashboard_id}, ds_cor={dashboard[1]}, dt_criacao={datetime.now()}, dt_atualizacao={datetime.now()}, nm_usuario_criacao='DMMSANTOS', nm_usuario_atualizacao='DMMSANTOS', ds_sql={dashboard[6]}, ds_titulo={dashboard[7]}, fk_nr_seq_painel={novo_painel_id}")
 
                 cursor.execute("""
-        INSERT INTO hp_painel_dashboard (
-            nr_sequencia, ds_cor, dt_criacao, dt_atualizacao, nm_usuario_criacao, nm_usuario_atualizacao, ds_sql, ds_titulo, fk_nr_seq_painel
-        ) VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9)
-    """, (
-        novo_dashboard_id,         # nr_sequencia
-        dashboard[1],              # ds_cor
-        datetime.now(),            # dt_criacao
-        datetime.now(),            # dt_atualizacao
-        "DMMSANTOS",               # nm_usuario_criacao
-        "DMMSANTOS",               # nm_usuario_atualizacao
-        dashboard[6],              # ds_sql
-        dashboard[7],              # ds_titulo
-        novo_painel_id             # fk_nr_seq_painel
-    ))
-                
+                INSERT INTO hp_painel_dashboard (
+                    nr_sequencia, ds_cor, dt_criacao, dt_atualizacao, nm_usuario_criacao, nm_usuario_atualizacao, ds_sql, ds_titulo, fk_nr_seq_painel, QT_TAMANHO_FONTE, DS_COR_TEXTO, DS_ALINHAMENTO, IE_FONT_BOLD, IE_FONT_ITALIC
+                ) VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13, :14)
+            """, (
+                novo_dashboard_id,         # nr_sequencia
+                dashboard[1],              # ds_cor
+                datetime.now(),            # dt_criacao
+                datetime.now(),            # dt_atualizacao
+                "DMMSANTOS",               # nm_usuario_criacao
+                "DMMSANTOS",               # nm_usuario_atualizacao
+                dashboard[6],              # ds_sql
+                dashboard[7],              # ds_titulo
+                novo_painel_id,             # fk_nr_seq_painel
+                dashboard[8],
+                dashboard[9],
+                dashboard[10],
+                dashboard[11],
+                dashboard[12]
+            ))
+                            
 
             # Passo 5: Duplicar legendas associadas ao painel
             print("Buscando e duplicando legendas associadas...")
@@ -714,6 +1046,236 @@ def duplicar_painel(painel_id):
             return redirect(url_for('lista_paineis'))
         finally:
             cursor.close()
+# Rota para cadastrar um novo gráfico
+@app.route('/cadastrar_grafico', methods=['POST'])
+def cadastrar_grafico():
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        
+        titulo_grafico = request.form.get('titulo_grafico')
+        sql_grafico = request.form.get('sql_grafico')
+        numero_apre_grafico = request.form.get('numero_apre_grafico')
+        tipo_grafico = request.form.get('tipo_grafico')
+        painel_id = request.form.get('painel_id')
+
+        # Obter o próximo valor da sequência
+        cursor.execute("SELECT PAINEL.GRAFICO_SEQ.NEXTVAL FROM dual")
+        next_grafico_id = cursor.fetchone()[0]
+
+        # Inserir o novo gráfico na tabela HP_PAINEL_GRAFICO
+        cursor.execute("""
+            INSERT INTO HP_PAINEL_GRAFICO (nr_sequencia, ds_titulo, ds_sql, nr_seq_apresentacao, ds_tipo_grafico, fk_nr_seq_painel, dt_atualizacao, dt_criacao, nm_usuario_criacao)
+            VALUES (:nr_sequencia, :titulo_grafico, :sql_grafico, :numero_apre_grafico, :tipo_grafico, :painel_id, SYSDATE, SYSDATE, 'ADMIN')
+        """, nr_sequencia = next_grafico_id, titulo_grafico=titulo_grafico, sql_grafico=sql_grafico, numero_apre_grafico=numero_apre_grafico, tipo_grafico=tipo_grafico, painel_id=painel_id)
+
+        connection.commit()
+        return jsonify({'success': True, 'message': 'Gráfico cadastrado com sucesso!'})
+    except oracledb.DatabaseError as e:
+        connection.rollback()
+        print(f"Erro oracledb.DatabaseError ao cadastrar gráfico: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+# Rota para editar um gráfico existente
+@app.route('/editar_grafico', methods=['POST'])
+def editar_grafico():
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        nr_sequencia = request.form.get('nr_sequencia')
+        titulo_grafico = request.form.get('titulo_grafico')
+        sql_grafico = request.form.get('sql_grafico')
+        numero_apre_grafico = request.form.get('numero_apre_grafico')
+        tipo_grafico = request.form.get('tipo_grafico')
+        
+        # Atualiza o gráfico na tabela HP_PAINEL_GRAFICO
+        cursor.execute("""
+            UPDATE HP_PAINEL_GRAFICO
+            SET ds_titulo = :titulo_grafico, ds_sql = :sql_grafico, nr_seq_apresentacao = :numero_apre_grafico, ds_tipo_grafico = :tipo_grafico , dt_atualizacao = SYSDATE, nm_usuario_atualizacao = 'ADMIN'
+            WHERE nr_sequencia = :nr_sequencia
+        """, titulo_grafico=titulo_grafico, sql_grafico=sql_grafico, numero_apre_grafico=numero_apre_grafico, tipo_grafico=tipo_grafico, nr_sequencia=nr_sequencia)
+        
+        connection.commit()
+        return jsonify({'success': True, 'message': 'Gráfico editado com sucesso!'})
+    except oracledb.DatabaseError as e:
+        connection.rollback()
+        print(f"Erro ao editar gráfico: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+    finally:
+        cursor.close()
+        connection.close()
+
+# Rota para excluir um gráfico
+@app.route('/excluir_grafico/<int:graficoId>', methods=['POST'])
+def excluir_grafico(graficoId):
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        # Excluir o gráfico da tabela HP_PAINEL_GRAFICO
+        cursor.execute("DELETE FROM HP_PAINEL_GRAFICO WHERE nr_sequencia = :graficoId", graficoId=graficoId)
+        
+        connection.commit()
+        return jsonify({'success': True, 'message': 'Gráfico excluído com sucesso!'})
+    except oracledb.DatabaseError as e:
+        connection.rollback()
+        print(f"Erro ao excluir Gráfico: {e}")
+        return jsonify({'success': False, 'message': 'Erro ao excluir Gráfico: ' + str(e)})
+    finally:
+        cursor.close()
+        connection.close()
+
+# Rota para duplicar um Gráfico existente
+@app.route('/duplicar_grafico', methods=['POST'])
+def duplicar_grafico():
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+
+        grafico_id = request.form.get('grafico_id')
+        
+        # Consulta o Gráfico que será duplicado
+        cursor.execute("SELECT ds_titulo, ds_sql, nr_seq_apresentacao, ds_tipo_grafico, fk_nr_seq_painel FROM HP_PAINEL_GRAFICO WHERE nr_sequencia = :grafico_id", grafico_id=grafico_id)
+        grafico = cursor.fetchone()
+
+        if not grafico:
+            return jsonify({'success': False, 'message': 'Gráfico não encontrado.'})
+        
+        titulo, sql, nr_apresentacao, tipo, fk_painel_id = grafico
+        
+        # Obter o próximo valor da sequência
+        cursor.execute("SELECT PAINEL.GRAFICO_SEQ.NEXTVAL FROM dual")
+        next_grafico_id = cursor.fetchone()[0]
+
+        # Inserir o Gráfico duplicado
+        cursor.execute("""
+            INSERT INTO HP_PAINEL_GRAFICO (nr_sequencia, ds_titulo, ds_sql, nr_seq_apresentacao, ds_tipo_grafico, fk_nr_seq_painel, dt_atualizacao, dt_criacao, nm_usuario_criacao)
+            VALUES (:nr_sequencia, :titulo, :sql, :nr_apresentacao, :tipo, :fk_painel_id, SYSDATE, SYSDATE, 'ADMIN')
+        """, nr_sequencia=next_grafico_id, titulo=titulo, sql=sql, nr_apresentacao=nr_apresentacao, tipo=tipo, fk_painel_id=fk_painel_id)
+
+        connection.commit()
+        return jsonify({'success': True, 'message': 'Gráfico duplicado com sucesso!'})
+    except oracledb.DatabaseError as e:
+        connection.rollback()
+        print(f"Erro ao duplicar gráfico: {e}")
+        return jsonify({'success': False, 'message': 'Erro ao duplicar gráfico: ' + str(e)})
+    finally:
+        cursor.close()
+        connection.close()
+
+
+#rota para visualizar grafico
+@app.route('/visualizar_painel_grafico/<int:painel_id>', methods=['GET'])
+def visualizar_painel_grafico(painel_id):
+    try:
+        engine = create_engine(
+            f"oracle+oracledb://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/?service_name={DB_SERVICE_NAME}"
+        )
+
+        with engine.connect() as conn:
+            # Obter título do painel
+            painel_query = text("""
+                SELECT ds_titulo_painel FROM hp_painel WHERE nr_sequencia = :painel_id
+            """)
+            painel = conn.execute(painel_query, {'painel_id': painel_id}).fetchone()
+
+            if not painel:
+                return jsonify({"error": "Painel não encontrado"}), 404
+
+            ds_titulo_painel = painel[0] or " "
+
+            # Obter dados dos gráficos
+            graficos_query = text(""" 
+                SELECT nr_sequencia, ds_titulo, ds_sql, nr_seq_apresentacao, ds_tipo_grafico
+                FROM hp_painel_grafico
+                WHERE fk_nr_seq_painel = :painel_id
+                ORDER BY nr_seq_apresentacao
+            """)
+            graficos = conn.execute(graficos_query, {'painel_id': painel_id}).fetchall()
+
+            if not graficos:
+                return jsonify({"error": "Nenhum gráfico encontrado para o painel"}), 404
+
+            # Log dos dados retornados
+            print(f"Dados dos gráficos retornados: {graficos}")
+
+            graficos_data = {}
+            for nr_sequencia, titulo, sql, num_apres, tipo in graficos:
+                print(f"Processando gráfico: {nr_sequencia}, Tipo: {tipo}, SQL: {sql}")
+                
+                if not sql or not sql.strip():
+                    graficos_data[f'grafico_{nr_sequencia}'] = {
+                        'image': None,
+                        'titulo': titulo,
+                        'tipo': tipo,
+                        'error': 'SQL vazio para este gráfico.'
+                    }
+                    continue
+                # Obtenha as legendas associadas ao gráfico
+                legendas_query = text("""
+                SELECT l.ds_legenda, l.ds_cor
+                FROM hp_painel_legenda l
+                JOIN hp_painel_grafico_legenda gl ON l.nr_sequencia = gl.fk_nr_seq_legenda
+                WHERE gl.fk_nr_seq_grafico = :nr_sequencia
+                """)
+
+                legendas_result = conn.execute(legendas_query, {'nr_sequencia': nr_sequencia}).fetchall()
+                legendas = [{'ds_legenda': legenda[0], 'ds_cor': legenda[1]} for legenda in legendas_result]
+
+                try:
+                    df = pd.read_sql_query(text(sql), con=engine)
+                    
+                    # Verificação do DataFrame
+                    print(f"DataFrame carregado: \n{df}")
+                    
+                    if df.empty:
+                        graficos_data[f'grafico_{nr_sequencia}'] = {
+                            'image': None,
+                            'titulo': titulo,
+                            'tipo': tipo,
+                            'error': 'Sem dados para gerar o gráfico.'
+                        }
+                        continue
+                    
+                    # Garantir que temos pelo menos 2 colunas
+                    if len(df.columns) < 2:
+                        print(f"DataFrame com menos de 2 colunas. Colunas: {df.columns}")
+                        graficos_data[f'grafico_{nr_sequencia}'] = {
+                            'image': None,
+                            'titulo': titulo,
+                            'tipo': tipo,
+                            'error': 'O DataFrame não possui colunas suficientes para gerar o gráfico.'
+                        }
+                        continue
+
+                    # Gerar o gráfico
+                    image_base64 = gerar_grafico(df, titulo, tipo, len(legendas) > 0, legendas)
+
+                    graficos_data[f'grafico_{nr_sequencia}'] = {
+                        'image': image_base64,
+                        'titulo': titulo,
+                        'tipo': tipo,
+                        'legendas': legendas
+                    }
+
+                except Exception as e:
+                    print(f"Erro ao processar gráfico {nr_sequencia}: {e}")
+                    graficos_data[f'grafico_{nr_sequencia}'] = {
+                        'image': None,
+                        'titulo': titulo,
+                        'tipo': tipo,
+                        'error': f"Erro ao executar SQL: {str(e)}"
+                    }
+        print(f"graficos_data: {graficos_data}")
+        return render_template('visualizar_painel_grafico.html',graficos_data=graficos_data, painel_id = painel_id)
+
+    except Exception as e:
+        print(f"Erro inesperado: {e}")
+        return jsonify({"error": "Erro inesperado"}), 500
 
 
 
@@ -741,7 +1303,11 @@ def configurar_colunas(painel_id):
         tamanho_coluna = request.form.get('tamanho_coluna')
         numero_apre_coluna = request.form.get('numero_apre_coluna')
         escondido_coluna = 'H' if request.form.get('escondido_coluna') else None  # Define como None se não estiver marcado
-
+        fonte_coluna = request.form.get('fonte_coluna')
+        cor_texto_coluna = request.form.get('cor_texto_coluna')
+        alinhamento_coluna = request.form.get('alinhamento_coluna')
+        font_bold = 'Y' if request.form.get('font_bold') else None
+        font_italic = 'Y' if request.form.get('font_italic') else None
         # Verificar se os campos obrigatórios estão preenchidos
         if not titulo_coluna or not atributo_coluna or not tamanho_coluna or not numero_apre_coluna:
             return jsonify({'success': False, 'error': 'Preencha todos os campos obrigatórios'}), 400
@@ -754,26 +1320,31 @@ def configurar_colunas(painel_id):
 
             # Inserir nova coluna no banco de dados
             cursor.execute(""" 
-                INSERT INTO HP_PAINEL_COLUNA 
-                (NR_SEQUENCIA, DS_TITULO_COLUNA, DS_ATRIBUTO, FK_NR_SEQ_PAINEL, 
-                DT_CRIACAO, DT_ATUALIZACAO, NM_USUARIO_CRIACAO, NM_USUARIO_ATUALIZACAO, 
-                QT_TAMANHO, NR_SEQ_APRESENTACAO, IE_HIDDEN, IE_SITUACAO, NM_CLASS)
-                VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13)
-            """, (
-                coluna_id,
-                titulo_coluna,
-                atributo_coluna,
-                painel_id,
-                datetime.now(),
-                datetime.now(),
-                "DMMSANTOS",
-                "DMMSANTOS",
-                int(tamanho_coluna),
-                int(numero_apre_coluna),
-                escondido_coluna,
-                'A',
-                classe_coluna
-            ))
+            INSERT INTO HP_PAINEL_COLUNA 
+            (NR_SEQUENCIA, DS_TITULO_COLUNA, DS_ATRIBUTO, FK_NR_SEQ_PAINEL, 
+            DT_CRIACAO, DT_ATUALIZACAO, NM_USUARIO_CRIACAO, NM_USUARIO_ATUALIZACAO, 
+            QT_TAMANHO, NR_SEQ_APRESENTACAO, IE_HIDDEN, IE_SITUACAO, NM_CLASS, DS_COR_TEXTO, QT_TAMANHO_FONTE, DS_ALINHAMENTO, IE_FONT_BOLD, IE_FONT_ITALIC)
+            VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13, :14, :15, :16, :17, :18)
+        """, (
+            coluna_id,
+            titulo_coluna,
+            atributo_coluna,
+            painel_id,
+            datetime.now(),
+            datetime.now(),
+            "DMMSANTOS",
+            "DMMSANTOS",
+            int(tamanho_coluna),
+            int(numero_apre_coluna),
+            escondido_coluna,
+            'A',
+            classe_coluna,
+            cor_texto_coluna,
+            int(fonte_coluna),
+            alinhamento_coluna,
+            font_bold,
+            font_italic
+        ))
 
             connection.commit()
 
@@ -799,6 +1370,7 @@ def configurar_colunas(painel_id):
 @app.route('/edit_column', methods=['POST'])
 def edit_column():
     data = request.get_json()  # Recebe os dados JSON
+    print("Dados recebidos:", data)
     try:
         # Obtendo os valores enviados pelo JSON
         data = request.json
@@ -809,15 +1381,12 @@ def edit_column():
         tamanho_coluna = data.get('tamanho_coluna')
         numero_apre_coluna = data.get('numero_apre_coluna')
         escondido_coluna = data.get('escondido_coluna')
-        print({
-            'coluna_id': coluna_id,
-            'titulo_coluna': titulo_coluna,
-            'atributo_coluna': atributo_coluna,
-            'classe_coluna': classe_coluna,
-            'tamanho_coluna': tamanho_coluna,
-            'numero_apre_coluna': numero_apre_coluna,
-            'escondido_coluna': escondido_coluna
-        })
+        fonte_coluna = data.get('fonte_coluna')
+        cor_texto_coluna = data.get('cor_texto_coluna')
+        alinhamento_coluna = data.get('alinhamento_coluna')
+        font_bold = data.get('font_bold')
+        font_italic = data.get('font_italic')
+        
         # Verificando se `coluna_id` existe antes de prosseguir
         if not coluna_id:
             return jsonify(success=False, message="ID da coluna não encontrado"), 400
@@ -830,12 +1399,12 @@ def edit_column():
             cursor = connection.cursor()
             # Execução do comando SQL
             cursor.execute("""UPDATE HP_PAINEL_COLUNA
-                            SET DS_TITULO_COLUNA = :1, DS_ATRIBUTO = :2, NM_CLASS = :3, QT_TAMANHO = :4,
-                                NR_SEQ_APRESENTACAO = :5, IE_HIDDEN = :6, DT_ATUALIZACAO = :7,
-                                nm_usuario_atualizacao = :8
-                            WHERE NR_SEQUENCIA = :9""",
-                        (titulo_coluna, atributo_coluna, classe_coluna, tamanho_coluna, numero_apre_coluna,
-                            'H' if escondido_coluna else None, dt_atualizacao, usuario_atualizacao, coluna_id))
+                SET DS_TITULO_COLUNA = :1, DS_ATRIBUTO = :2, NM_CLASS = :3, QT_TAMANHO = :4,
+                    NR_SEQ_APRESENTACAO = :5, IE_HIDDEN = :6, DT_ATUALIZACAO = :7,
+                    nm_usuario_atualizacao = :8, DS_COR_TEXTO = :9, QT_TAMANHO_FONTE = :10, DS_ALINHAMENTO = :11, IE_FONT_BOLD = :12, IE_FONT_ITALIC = :13
+                WHERE NR_SEQUENCIA = :14""",
+            (titulo_coluna, atributo_coluna, classe_coluna, tamanho_coluna, numero_apre_coluna,
+                'H' if escondido_coluna else None, dt_atualizacao, usuario_atualizacao, cor_texto_coluna, int(fonte_coluna), alinhamento_coluna, font_bold, font_italic, coluna_id))
             
             # Commit da transação
             connection.commit()
@@ -938,6 +1507,13 @@ def cadastrar_dashboard():
         titulo_dashboard = request.form.get('titulo_dashboard')
         sql_dashboard = request.form.get('sql_dashboard')
         cor_dashboard = request.form.get('cor_dashboard')
+        cor_texto_dashboard = request.form.get("ds_cor_texto")
+        alinhamento_dashboard = request.form.get("ds_alinhamento") or "center"
+        font_bold_dashboard = request.form.get("font_bold")
+        font_italic_dashboard = request.form.get("font_italic")
+        fonte_dashboard = request.form.get("fonte_dashboard")
+
+
 
         # Verificar se os campos obrigatórios estão preenchidos
         if not titulo_dashboard or not sql_dashboard:
@@ -951,10 +1527,10 @@ def cadastrar_dashboard():
 
             # Inserir novo dashboard no banco de dados
             cursor.execute("""
-                INSERT INTO hp_painel_dashboard 
-                (nr_sequencia, ds_titulo, ds_sql, ds_cor, fk_nr_seq_painel, dt_criacao, dt_atualizacao, nm_usuario_criacao, nm_usuario_atualizacao)
-                VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9)
-            """, (
+            INSERT INTO hp_painel_dashboard 
+            (nr_sequencia, ds_titulo, ds_sql, ds_cor, fk_nr_seq_painel, dt_criacao, dt_atualizacao, nm_usuario_criacao, nm_usuario_atualizacao, QT_TAMANHO_FONTE, DS_COR_TEXTO, DS_ALINHAMENTO, IE_FONT_BOLD, IE_FONT_ITALIC)
+            VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13, :14)
+        """, (
                 dashboard_id, 
                 titulo_dashboard, 
                 sql_dashboard, 
@@ -963,9 +1539,13 @@ def cadastrar_dashboard():
                 datetime.now(), 
                 datetime.now(), 
                 "DMMSANTOS",  
-                "DMMSANTOS"   
+                "DMMSANTOS",
+                int(fonte_dashboard),
+                cor_texto_dashboard,
+                alinhamento_dashboard,
+                font_bold_dashboard,
+                font_italic_dashboard
             ))
-
             connection.commit()
 
             # Retornar sucesso e os dados do novo dashboard para serem atualizados no frontend
@@ -993,6 +1573,11 @@ def editar_dashboard():
         titulo_dashboard = data.get('titulo_dashboard')
         sql_dashboard = data.get('sql_dashboard')
         cor_dashboard = data.get('cor_dashboard')
+        fonte_dashboard = data.get("fonte_dashboard")
+        cor_texto_dashboard = data.get("ds_cor_texto")
+        alinhamento_dashboard = data.get("ds_alinhamento") or "center"
+        font_bold_dashboard = data.get("font_bold")
+        font_italic_dashboard = data.get("font_italic")
 
         print({
             'dashboard_id': dashboard_id,
@@ -1013,16 +1598,15 @@ def editar_dashboard():
         with get_db_connection() as connection:
             cursor = connection.cursor()
             # Execução do comando SQL
-            cursor.execute("""
-                UPDATE HP_PAINEL_DASHBOARD
-                SET DS_TITULO = :1, DS_SQL = :2, DS_COR = :3, DT_ATUALIZACAO = :4, NM_USUARIO_ATUALIZACAO = :5
-                WHERE NR_SEQUENCIA = :6
-            """, (titulo_dashboard, sql_dashboard, cor_dashboard, dt_atualizacao, usuario_atualizacao, dashboard_id))
+        cursor.execute("""
+            UPDATE HP_PAINEL_DASHBOARD
+            SET DS_TITULO = :1, DS_SQL = :2, DS_COR = :3, DT_ATUALIZACAO = :4, NM_USUARIO_ATUALIZACAO = :5, QT_TAMANHO_FONTE = :6, DS_COR_TEXTO = :7, DS_ALINHAMENTO = :8, IE_FONT_BOLD = :9, IE_FONT_ITALIC = :10
+            WHERE NR_SEQUENCIA = :11
+        """, (titulo_dashboard, sql_dashboard, cor_dashboard, dt_atualizacao, usuario_atualizacao, int(fonte_dashboard), cor_texto_dashboard, alinhamento_dashboard, font_bold_dashboard, font_italic_dashboard, dashboard_id))
+                    # Confirma a transação
+        connection.commit()
 
-            # Confirma a transação
-            connection.commit()
-
-            return jsonify(success=True, message="Dashboard editado com sucesso")
+        return jsonify(success=True, message="Dashboard editado com sucesso")
 
     except Exception as e:
         # Tratamento de erro com detalhes
@@ -1300,9 +1884,9 @@ def listar_colunas_painel():
     print("ID atribuida: ", painel_id)
     with get_db_connection() as connection:
         cursor = connection.cursor()
-        cursor.execute('SELECT nr_sequencia, ds_atributo FROM hp_painel_coluna WHERE fk_nr_seq_painel = :1', (painel_id,))
+        cursor.execute('SELECT nr_sequencia, DS_TITULO_COLUNA FROM hp_painel_coluna WHERE fk_nr_seq_painel = :1', (painel_id,))
         colunas = cursor.fetchall()
-        colunas_list = [{'nr_sequencia': coluna[0], 'ds_atributo': coluna[1]} for coluna in colunas]
+        colunas_list = [{'nr_sequencia': coluna[0], 'DS_TITULO_COLUNA': coluna[1]} for coluna in colunas]
         return jsonify({'colunas': colunas_list})
     
     

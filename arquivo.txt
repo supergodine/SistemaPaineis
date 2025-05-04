@@ -1,0 +1,1 @@
+oracledb.init_oracle_client(lib_dir=r"C:\Users\Diego\Desktop\oracle client\instantclient_23_7")

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<!-- linhas 629, 599  -->
+
 
 <head>
     <meta charset="UTF-8">
@@ -14,6 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='imagens/favicon.ico') }}">
 
 
     <!-- Script para alternar entre temas -->
@@ -22,9 +23,11 @@
             const themeToggleBtn = document.getElementById('theme-toggle');
             const body = document.body;
 
+            // Carregar o tema armazenado
             const currentTheme = localStorage.getItem('theme') || 'light';
             body.classList.add(currentTheme);
 
+            // Adicionar evento de clique para alternar temas
             themeToggleBtn.addEventListener('click', function () {
                 body.classList.toggle('dark-theme');
                 body.classList.toggle('light-theme');
@@ -32,13 +35,58 @@
                 localStorage.setItem('theme', newTheme);
             });
         });
-        
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const themeToggle = document.getElementById('themeToggle');
+            const themeIcon = document.getElementById('themeIcon');
+            const logo = document.getElementById('logoImg');
+
+            // Verifica se há um tema salvo no localStorage
+            if (localStorage.getItem('darkTheme') === 'enabled') {
+                document.body.classList.add('dark-mode');
+                themeIcon.classList.replace('fa-sun', 'fa-moon');
+                logo.src = "{{ url_for('static', filename='imagens/logo3.png') }}"; // Muda para logo escura
+            }
+
+            themeToggle.addEventListener('click', function () {
+                document.body.classList.toggle('dark-mode');
+                const darkModeEnabled = document.body.classList.contains('dark-mode');
+
+                if (darkModeEnabled) {
+                    themeIcon.classList.replace('fa-sun', 'fa-moon');
+                    logo.src = "{{ url_for('static', filename='imagens/logo3.png') }}"; // Muda para logo escura
+                    localStorage.setItem('darkTheme', 'enabled');
+                } else {
+                    themeIcon.classList.replace('fa-moon', 'fa-sun');
+                    logo.src = "{{ url_for('static', filename='imagens/logo.png') }}"; // Volta para logo clara
+                    localStorage.setItem('darkTheme', 'disabled');
+                }
+            });
+        });
+
+
 
         /**********************inicio coluna**************************/
+        function aplicarFormatacaoColuna(colunaElement, fonte, corTexto, alinhamento) {
+            colunaElement.style.fontSize = fonte + 'px';
+            colunaElement.style.color = corTexto;
+            colunaElement.style.textAlign = alinhamento;
+        }
 
+        // Exemplo de uso ao salvar a coluna:
+        $('#adicionarColunaForm').on('submit', function (event) {
+            event.preventDefault();
+            const fonte = $('#fonte_coluna').val();
+            const corTexto = $('#cor_texto_coluna').val();
+            const alinhamento = $('#alinhamento_coluna').val();
+
+            // Aplicar formatação ao elemento da coluna
+            const colunaElement = document.createElement('td');
+            aplicarFormatacaoColuna(colunaElement, fonte, corTexto, alinhamento);
+        });
         // Função para abrir o modal de edição com dados preenchidos
-        function abrirModalEditarColuna(id, titulo, atributo, classe, tamanho, numeroApre, escondido) {
-            console.log({ id, titulo, atributo, classe, tamanho, numeroApre, escondido });
+        function abrirModalEditarColuna(id, titulo, atributo, classe, tamanho, numeroApre, escondido, fonte, corTexto, alinhamento, fontBold, fontItalic) {
+            console.log({ id, titulo, atributo, classe, tamanho, numeroApre, escondido, fonte, corTexto, alinhamento, fontBold, fontItalic });
 
             // Preenche os campos do modal com os valores passados
             $('#coluna_id_edit').val(id);
@@ -48,6 +96,11 @@
             $('#tamanho_coluna_edit').val(tamanho);
             $('#numero_apre_coluna_edit').val(numeroApre);
             $('#escondido_coluna_edit').prop('checked', escondido === 'H');
+            $('#edit_fonte_coluna').val(fonte);
+            $('#edit_cor_texto_coluna').val(corTexto);
+            $('#edit_alinhamento_coluna').val(alinhamento);
+            $('#edit_font_bold').prop('checked', fontBold === 'Y');
+            $('#edit_font_italic').prop('checked', fontItalic === 'Y');
 
             // Exibe o modal de edição
             $('#editColumnModal').modal('show');
@@ -64,7 +117,12 @@
                 classe_coluna: $('#classe_coluna_edit').val(),
                 tamanho_coluna: $('#tamanho_coluna_edit').val(),
                 numero_apre_coluna: $('#numero_apre_coluna_edit').val(),
-                escondido_coluna: $('#escondido_coluna_edit').is(':checked') ? 'H' : '' // Define 'H' se estiver marcado
+                escondido_coluna: $('#escondido_coluna_edit').is(':checked') ? 'H' : '', // Define 'H' se estiver marcado
+                fonte_coluna: $('#edit_fonte_coluna').val(),
+                cor_texto_coluna: $('#edit_cor_texto_coluna').val(),
+                alinhamento_coluna: $('#edit_alinhamento_coluna').val(),
+                font_bold: $('#edit_font_bold').is(':checked') ? 'Y' : 'N',
+                font_italic: $('#edit_font_italic').is(':checked') ? 'Y' : 'N'
             };
             console.log('Dados enviados:', colunaData); // Para confirmar o que está sendo enviado
 
@@ -72,7 +130,8 @@
             $.ajax({
                 url: '/edit_column',
                 type: 'POST',
-                data: colunaData,
+                data: JSON.stringify(colunaData), // Send as JSON
+                contentType: 'application/json', // Set content type to JSON
                 success: function (response) {
                     if (response.success) {
                         alert(response.message); // Exibe mensagem de sucesso
@@ -87,6 +146,7 @@
                 }
             });
         });
+
         // Excluir coluna
         function excluirColuna(coluna_id) {
 
@@ -310,7 +370,7 @@
 
                         // Popula o select com as colunas retornadas do servidor
                         $.each(response.colunas, function (index, coluna) {
-                            colunasSelect.append(new Option(coluna.ds_atributo, coluna.nr_sequencia));
+                            colunasSelect.append(new Option(coluna.DS_TITULO_COLUNA, coluna.nr_sequencia));
                         });
                     },
                     error: function (error) {
@@ -336,7 +396,7 @@
 
                         // Popula o select com as colunas retornadas do servidor
                         $.each(response.colunas, function (index, coluna) {
-                            colunasSelect.append(new Option(coluna.ds_atributo, coluna.nr_sequencia));
+                            colunasSelect.append(new Option(coluna.DS_TITULO_COLUNA, coluna.nr_sequencia));
                         });
                     },
                     error: function (error) {
@@ -366,15 +426,17 @@
         }
 
         // Função para abrir o modal de edição e preencher os campos
-        function editarRegra(regraId, valor, icone, substituicao, cor) {
+        function editarRegra(regraId, valor, icone, classe, substituicao, cor, coluna, celulaLinha) {
             // Preencher os campos do formulário com os dados da regra selecionada
             document.getElementById('edit_regra_id').value = regraId;
             document.getElementById('edit_valor_regra').value = valor;
             document.getElementById('edit_icone_regra').value = icone;
-            document.getElementById('edit_cor_regra').value = cor;
-
-            // Ajustar o checkbox de substituição
+            document.getElementById('edit_classe_regra').value = classe;
             document.getElementById('edit_substituicao_regra').checked = (substituicao === 'S');
+            document.getElementById('edit_cor_regra').value = cor;
+            document.getElementById('edit_coluna_regra').value = coluna;
+            document.getElementById('edit_celulaLinha_regra').value = celulaLinha;
+
 
             // Abrir o modal
             $('#editRuleModal').modal('show');
@@ -519,7 +581,12 @@
                     titulo_dashboard: $('#titulo_dashboard').val(),
                     sql_dashboard: $('#sql_dashboard').val(),
                     cor_dashboard: $('#cor_dashboard').val(),
-                    painel_id: $('input[name="painel_id"]').val()
+                    painel_id: $('input[name="painel_id"]').val(),
+                    fonte_dashboard: $('#fonte_dashboard').val(),
+                    cor_texto_dashboard: $('#ds_cor_texto').val(),
+                    alinhamento_dashboard: $('#ds_alinhamento').val(),
+                    font_bold_dashboard: $('#font_bold').is(':checked') ? 'Y' : 'N',
+                    font_italic_dashboard: $('#font_italic').is(':checked') ? 'Y' : 'N'
                 };
 
                 // Defina a URL de acordo com o modo de edição ou adição
@@ -547,14 +614,18 @@
 
 
         // Função para abrir o modal de edição de dashboard com dados preenchidos
-        function abrirModalEditarDashboard(id, titulo, sql, cor) {
+        function abrirModalEditarDashboard(id, titulo, sql, cor,  fonte, corTexto, alinhamento, fontBold, fontItalic) {
 
             // Preenche os campos do modal com os valores passados
             $('#dashboard_id_edit').val(id); // Aqui será o ID do dashboard
             $('#titulo_dashboard_edit').val(titulo); // Título do dashboard
             $('#sql_dashboard_edit').val(sql); // SQL do dashboard
             $('#cor_dashboard_edit').val(cor); // Cor do dashboard
-
+            $('#fonte_dashboard_edit').val(fonte);
+            $('#ds_cor_texto_edit').val(corTexto);
+            $('#ds_alinhamento_edit').val(alinhamento);
+            $('#font_bold_edit').prop('checked', fontBold === 'Y');
+            $('#font_italic_edit').prop('checked', fontItalic === 'Y');
             // Exibe o modal de edição
             $('#editDashboardModal').modal('show');
         }
@@ -568,7 +639,12 @@
                 nr_sequencia: $('#dashboard_id_edit').val(),  // ID do dashboard
                 titulo_dashboard: $('#titulo_dashboard_edit').val(),
                 sql_dashboard: $('#sql_dashboard_edit').val(),
-                cor_dashboard: $('#cor_dashboard_edit').val()
+                cor_dashboard: $('#cor_dashboard_edit').val(),
+                fonte_dashboard: $('#fonte_dashboard_edit').val(),
+                cor_texto_dashboard: $('#ds_cor_texto_edit').val(),
+                alinhamento_dashboard: $('#ds_alinhamento_edit').val(),
+                font_bold_dashboard: $('#font_bold_edit').is(':checked') ? 'Y' : 'N',
+                font_italic_dashboard: $('#font_italic_edit').is(':checked') ? 'Y' : 'N'
             };
             console.log('Dados enviados:', dashboardData); // Para confirmar o que está sendo enviado
 
@@ -621,18 +697,152 @@
         }
 
         /************************************Fim Dashboard*********************************/
+
+        // Função para abrir o modal de adicionar grafico
+
+        $(document).ready(function () {
+            $('#addGraficoForm').on('submit', function (event) {
+                event.preventDefault();
+
+                let formData = {
+                    titulo_grafico: $('#titulo_grafico').val(),
+                    sql_grafico: $('#sql_grafico').val(),
+                    numero_apre_grafico: $('#numero_apre_grafico').val(),
+                    tipo_grafico: $('#tipo_grafico').val(),
+                    painel_id: $('input[name="painel_id"]').val()
+                };
+
+                $.ajax({
+                    url: '/cadastrar_grafico',
+                    method: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        if (response.success) {
+                            alert('Gráfico cadastrado com sucesso!');
+                            location.reload();
+                        } else {
+                            alert('Erro: ' + response.error);
+                        }
+                    },
+                    error: function (error) {
+                        console.error('Erro na comunicação com o servidor:', error);
+                        alert('Erro ao cadastrar o gráfico.');
+                    }
+                });
+            });
+        });
+        // Função para abrir o modal de edição de Gráfico com dados preenchidos
+        function abrirModalEditarGrafico(id, titulo, sql, numeroApre, tipo) {
+            // Preenche os campos do modal com os valores passados
+            $('#grafico_id_edit').val(id); // Aqui será o ID do grafico
+            $('#titulo_grafico_edit').val(titulo); // Título do grafico
+            $('#sql_grafico_edit').val(sql); // SQL do grafico
+            $('#numero_apre_grafico_edit').val(numeroApre); // Numero de apresentação do grafico
+            $('#tipo_grafico_edit').val(tipo) // tipo de grafico
+
+            // Exibe o modal de edição
+            $('#editGraficoModal').modal('show');
+        }
+        // Configuração do formulário para enviar os dados de edição via AJAX
+        $('#editGraficoForm').on('submit', function (event) {
+            event.preventDefault(); // Impede o envio padrão do formulário
+
+            const graficoData = {
+                nr_sequencia: $('#grafico_id_edit').val(),  // ID do grafico
+                titulo_grafico: $('#titulo_grafico_edit').val(),
+                sql_grafico: $('#sql_grafico_edit').val(),
+                numero_apre_grafico: $('#numero_apre_grafico_edit').val(),
+                tipo_grafico: $('#tipo_grafico_edit').val()
+            };
+            console.log('Dados enviados:', graficoData); // Para confirmar o que está sendo enviado
+
+            // Envia os dados via AJAX
+            $.ajax({
+                url: '/editar_grafico',
+                type: 'POST',
+                data: graficoData,
+                success: function (response) {
+                    if (response.success) {
+                        alert(response.message); // Exibe mensagem de sucesso
+                        $('#editGraficoModal').modal('hide'); // Fecha o modal
+                        location.reload(); // Recarrega a página para atualizar a tabela
+                    } else {
+                        alert(response.message); // Exibe mensagem de erro
+                    }
+                },
+                error: function () {
+                    alert('Ocorreu um erro ao salvar o grafico.');
+                }
+            });
+        });
+
+        // duplicar grafico
+        function duplicarGrafico(grafico_id) {
+            if (confirm('Tem certeza de que deseja duplicar este grafico?')) {
+                $.post('/duplicar_grafico', { grafico_id: grafico_id })
+                    .done(function (response) {
+                        if (response.success) {
+                            alert('Grafico duplicado com sucesso!');
+                            location.reload(); // Atualiza a página para mostrar o grafico duplicado
+                        } else {
+                            alert('Erro ao duplicar o grafico: ' + response.message);
+                        }
+                    })
+                    .fail(function () {
+                        alert('Erro ao fazer a requisição. Por favor, tente novamente.');
+                    });
+            }
+        }
+        //excluir grafico
+        function excluirGrafico(graficoId) {
+            // Confirmar exclusão com o usuário
+            if (confirm("Tem certeza que deseja excluir este grafico?")) {
+                // Enviar requisição AJAX para o servidor
+                console.log("grafico id: " + graficoId)
+                $.ajax({
+                    url: `/excluir_grafico/${graficoId}`,  // URL para excluir o grafico
+                    type: 'POST',
+                    success: function (response) {
+                        // Se a resposta for bem-sucedida, removemos a linha do grafico da tabela
+                        console.log("Grafico excluído com sucesso", response);
+                        alert('Grafico excluído com sucesso!');
+
+                        // Remover a linha do grafico da tabela
+                        $(`#grafico-row-${graficoId}`).remove();  // Remove a linha da tabela com o ID do grafico
+                    },
+                    error: function (xhr, status, error) {
+                        // Caso ocorra um erro na requisição
+                        console.error("Erro ao excluir o grafico:", error);
+                        alert('Erro ao excluir o grafico. Tente novamente.');
+                    }
+                });
+            }
+        }
+        /************************************Fim Gráfico*********************************/
+
     </script>
 </head>
 
-<body class="light-theme">
+<body class="bg-light">
+    <div class="logo">
+        <!-- Logotipo do aplicativo -->
+        <img id="logoImg" src="{{ url_for('static', filename='imagens/logo.png') }}" alt="Logotipo"
+            style="max-height: 60px;">
+    </div>
     <div class="container">
+
         <h2 class="mt-5">Editar Painel</h2>
-        <button id="theme-toggle" class="btn btn-info mb-3">Alternar Tema</button>
+        <div class="text-right" style="margin: 1rem;">
+            <button id="themeToggle" class="btn btn-secondary">
+                <i class="fas fa-sun" id="themeIcon"></i> <!-- Ícone de sol inicial -->
+            </button>
+
+        </div>
         <form id="panelForm" method="POST" action="/editar_painel/{{ painel_id }}">
             <input type="hidden" name="painel_id" value="{{ painel_id }}">
 
             <div class="form-group">
-                <label for="ds_titulo_painel">Título</label>
+                <label for=" ds_titulo_painel">Título</label>
                 <input type="text" class="form-control" id="ds_titulo_painel" name="ds_titulo_painel"
                     value="{{ painel[0] }}" required>
             </div>
@@ -646,6 +856,20 @@
             <div class="form-group">
                 <label for="ds_sql">SQL Query</label>
                 <textarea class="form-control" id="ds_sql" name="ds_sql" required>{{ painel[4] }}</textarea>
+            </div>
+            <!-- Novo campo para SQL do filtro -->
+            <div class="form-group">
+                <label for="sql_filtro">SQL do Filtro</label>
+                <textarea class="form-control" id="sql_filtro" name="sql_filtro"></textarea>
+            </div>
+            <!-- Novo campo para tipo de filtro -->
+            <div class="form-group">
+                <label for="tipo_filtro">Tipo de Filtro</label>
+                <select class="form-control" id="tipo_filtro" name="tipo_filtro">
+                    <option value="">Selecione</option>
+                    <option value="unico">Único</option>
+                    <option value="multiselecao">Multiseleção</option>
+                </select>
             </div>
 
             <div class="d-flex justify-content-between" style="padding: 10px 5px;">
@@ -671,196 +895,262 @@
         <!-- Seção de Configurações Adicionais -->
         <div id="camposAdicionais" class="mt-5">
             <h3>Configurações Adicionais</h3>
+            <div class="row">
+                <!-- Colunas -->
+                <div class="col-md-6">
+                    <h4>Colunas</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Atributo</th>
+                                <th>Classe</th>
+                                <th>Tamanho</th>
+                                <th>Nº apre.</th>
+                                <th>Escondido</th>
+                                
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <button class="btn btn-info" id="novaColunaBtn" data-toggle="modal"
+                            data-target="#addColumnModal"
+                            style="margin-left: 76%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova
+                            Coluna</button>
+                        <tbody id="colunas">
+                            {% for coluna in colunas %}
+                            <tr data-coluna-id="{{ coluna[0] }}">
 
-            <!-- Colunas -->
-            <h4>Colunas</h4>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Título</th>
-                        <th>Atributo</th>
-                        <th>Classe</th>
-                        <th>Tamanho</th>
-                        <th>Nº apre.</th>
-                        <th>Escondido</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <button class="btn btn-info" id="novaColunaBtn" data-toggle="modal" data-target="#addColumnModal"
-                    style="margin-left: 86%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova
-                    Coluna</button>
-                </button>
-                <tbody id="colunas">
-                    {% for coluna in colunas %}
-                    <tr data-coluna-id="{{ coluna[0] }}"> 
+                                <td>{{ coluna[1] }}</td>
+                                <td>{{ coluna[2] }}</td>
+                                <td>{{ coluna[3] }}</td>
+                                <td>{{ coluna[4] }}</td>
+                                <td>{{ coluna[5] }}</td>
+                                <td>{{ coluna[6] }}</td>
+                                
+                                
+                                <td>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="abrirModalEditarColuna('{{ coluna[0] }}', '{{ coluna[1] }}', '{{ coluna[2] }}', '{{ coluna[3] }}', '{{ coluna[4] }}',  '{{ coluna[5] }}','{{ coluna[6] }}', '{{ coluna[7] }}', '{{ coluna[8] }}', '{{ coluna[9] }}', '{{ coluna[10] }}', '{{ coluna[11] }}')">
+                                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"
+                                            title="Editar Coluna"></i>
+                                    </button>
 
-                        <td>{{ coluna[1] }}</td> <!--DS_TITULO -->
-                        <td>{{ coluna[2] }}</td> <!--DS_ATRIBUTO-->
-                        <td>{{ coluna[3] }}</td> <!--CLASSE -->
-                        <td>{{ coluna[4] }}</td> <!--ESCONDIDO -->
-                        <td>{{ coluna[5] }}</td> <!--TAMANHO-->
-                        <td>{{ coluna[6] }}</td> <!--Nº APRESENTÇÃO -->
-                        <td>
-                            <button class="btn btn-sm btn-outline-none"
-                                onclick="abrirModalEditarColuna('{{ coluna[0] }}', '{{ coluna[1] }}', '{{ coluna[2] }}', '{{ coluna[3] }}', '{{ coluna[4] }}',  '{{ coluna[5] }}','{{ coluna[6] }}')">
-                                <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)" title="Editar Coluna"></i>
-                            </button>
+                                    <button class="btn btn-sm btn-outline-none" title="Excluir"
+                                        onclick="excluirColuna('{{ coluna[0] }}');">
+                                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
+                                    </button>
 
-                            <button class="btn btn-sm btn-outline-none" title="Excluir"
-                                onclick="excluirColuna('{{ coluna[0] }}');">
-                                <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
-                            </button>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="duplicarColuna('{{ coluna[0] }}')">
+                                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"
+                                            title="Duplicar Coluna"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Dashboards -->
+                <div class="col-md-6">
+                    <h4 class="mt-4">Dashboards</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>SQL</th>
+                                <th>Cor</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <button class="btn btn-info" id="novoDashboardBtn" data-toggle="modal"
+                            data-target="#addDashboardModal"
+                            style="margin-left: 73.5%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">
+                            + Novo Dashboard
+                        </button>
+                        <tbody>
+                            {% for dashboard in dashboards %}
+                            <tr id="dashboard-row-{{ dashboard[0] }}">
+                                <td>{{ dashboard[1] }}</td>
+                                <td>{{ dashboard[2] }}</td>
+                                <td><span
+                                        style="background-color: {{ dashboard[3] }}; display: block; width: 100%; height: 20px;"></span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-none"
+                                    onclick="abrirModalEditarDashboard('{{ dashboard[0] | e }}', '{{ dashboard[1] | e }}', '{{ dashboard[2] | e }}', '{{ dashboard[3] | e }}', '{{ dashboard[8] | e }}', '{{ dashboard[9] | e }}', '{{ dashboard[10] | e }}', '{{ dashboard[11] | e }}', '{{ dashboard[12] | e }}')">
 
-                            <button class="btn btn-sm btn-outline-none" onclick="duplicarColuna('{{ coluna[0] }}')">
-                                <i class="fas fa-copy" style="color: rgb(156, 212, 1)" title="Duplicar Coluna"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
+                                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"
+                                            title="Editar Dashboard"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="excluirDashboard('{{ dashboard[0] }}')">
+                                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"
+                                            title="Excluir Dashboard"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="duplicarDashboard('{{ dashboard[0] }}')">
+                                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"
+                                            title="Duplicar Dashboard"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="row">
+                <!-- Legendas -->
+                <div class="col-md-6">
+                    <h4 class="mt-4">Legendas</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Cor</th>
+                                <th>Nº apre</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <button class="btn btn-info" id="novaLegendaBtn" data-toggle="modal"
+                            data-target="#addLegendModal"
+                            style="margin-left: 75%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova
+                            Legenda</button>
+                        <tbody>
+                            {% for legenda in legendas %}
+                            <tr>
+                                <td>{{ legenda[1] }}</td>
+                                <td><span
+                                        style="background-color: {{ legenda[2] }}; display: block; width: 100%; height: 20px;"></span>
+                                </td>
+                                <td>
+                                    <span>
+                                        {{ legenda[3] }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="abrirModalEditarLegenda('{{ legenda[0] }}', '{{ legenda[1] }}', '{{ legenda[2] }}', '{{ legenda[3] }}')">
+                                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="excluirLegenda('{{ legenda[0] }}')">
+                                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
+                                    </button>
 
-
-            </table>
-
-
-            <!-- Dashboards -->
-            <h4 class="mt-4">Dashboards</h4>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Título</th>
-                        <th>SQL</th>
-                        <th>Cor</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <button class="btn btn-info" id="novoDashboardBtn" data-toggle="modal" data-target="#addDashboardModal"
-                    style="margin-left: 83.5%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">
-                    + Novo Dashboard
-                </button>
-                <tbody>
-                    {% for dashboard in dashboards %}
-                    <tr id="dashboard-row-{{ dashboard[0] }}">
-                        <td>{{ dashboard[1] }}</td> <!-- Título do dashboard -->
-                        <td>{{ dashboard[2] }}</td> <!-- SQL do dashboard -->
-                        <td><span
-                                style="background-color: {{ dashboard[3] }}; display: block; width: 100%; height: 20px;"></span>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-none"
-                                onclick="abrirModalEditarDashboard('{{ dashboard[0] | e }}', '{{ dashboard[1] | e }}', '{{ dashboard[2] | e }}', '{{ dashboard[3] | e }}')">
-                                <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"
-                                    title="Editar Dashboard"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-none"
-                                onclick="excluirDashboard('{{ dashboard[0] }}')">
-                                <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)" title="Excluir Dashboard"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-none"
-                                onclick="duplicarDashboard('{{ dashboard[0] }}')">
-                                <i class="fas fa-copy" style="color: rgb(156, 212, 1)" title="Duplicar Dashboard"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-
-            <!-- Legendas -->
-            <h4 class="mt-4">Legendas</h4>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Título</th>
-                        <th>Cor</th>
-                        <th>Nº apre</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <button class="btn btn-info" id="novaLegendaBtn" data-toggle="modal" data-target="#addLegendModal"
-                    style="margin-left: 85%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova
-                    Legenda</button>
-                </button>
-                <tbody id="legendas">
-                    {% for legenda in legendas %}
-                    <tr>
-                        <td>{{ legenda[1] }}</td> <!-- Título da legenda -->
-                        <td><span
-                                style="background-color: {{ legenda[2] }}; display: block; width: 100%; height: 20px;"></span>
-                        </td> <!-- Cor -->
-                        <td>
-                            <span>
-                                {{ legenda[3] }}
-                            </span>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-none"
-                                onclick="abrirModalEditarLegenda('{{ legenda[0] }}', '{{ legenda[1] }}', '{{ legenda[2] }}', '{{ legenda[3] }}')">
-                                <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-none" onclick="excluirLegenda('{{ legenda[0] }}')">
-                                <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
-                            </button>
-
-                            <button class="btn btn-sm btn-outline-none" onclick="duplicarLegenda('{{ legenda[0] }}')">
-                                <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-
-            <!-- Regras -->
-            <h4 class="mt-4">Regras</h4>
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Valor</th>
-                        <th>Ícone</th>
-                        <th>Substituição</th>
-                        <th>Cor</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <button class="btn btn-info" id="novaRegraBtn" data-toggle="modal" data-target="#addRuleModal"
-                    style="margin-left: 85%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova
-                    Legenda</button>
-                </button>
-                <tbody id="regras">
-                    {% for regra in regras %}
-                    <tr data-regra-id="{{ regra[0] }}">
-                        <td>{{ regra[1] }}</td> <!-- Valor da regra -->
-                        <td><i class="{{ regra[4] }}"></i></td> <!-- Ícone -->
-                        <td>{{ regra[3] }}</td> <!-- Substituição (sim/não) -->
-                        <td><span
-                                style="background-color: {{ regra[2] }}; display: block; width: 100%; height: 20px;"></span>
-                        </td>
-
-                        <td>
-                            <button class="btn btn-sm btn-outline-none"
-                                onclick="abrirModalEditarRegra('{{ regra[0] }}', '{{ regra[1] }}', '{{ regra[4] }}', '{{ regra[3] }}', '{{ regra[2] }}')">
-                                <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-none" onclick="excluirRegra('{{ regra[0] }}')">
-                                <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-none" onclick="duplicarRegraCor('{{ regra[0] }}')">
-                                <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i>
-                            </button>
-
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="duplicarLegenda('{{ legenda[0] }}')">
+                                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Regras -->
+                <div class="col-md-6">
+                    <h4 class="mt-4">Regras</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Valor</th>
+                                <th>Ícone</th>
+                                <th>Classe</th>
+                                <th>Substituição</th>
+                                <th>Cor</th>
+                                <th>Coluna</th>
+                                <th>Cel/lin</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <button class="btn btn-info" id="novaRegraBtn" data-toggle="modal" data-target="#addRuleModal"
+                            style="margin-left: 75%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">+ Nova
+                            Regra</button>
+                        <tbody id="regras">
+                            {% for regra in regras %}
+                            <tr data-regra-id="{{ regra[0] }}">
+                                <td>{{ regra[1] }}</td>
+                                <td><i class="{{ regra[4] }}"></i></td>
+                                <td>{{ regra[6] }}</td>
+                                <td>{{ regra[3] }}</td>
+                                <td><span
+                                        style="background-color: {{ regra[2] }}; display: block; width: 100%; height: 20px;"></span>
+                                </td>
+                                <td>{{ regra[11] }}</td>
+                                <td>{{ regra[5] }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="abrirModalEditarRegra('{{ regra[0] }}', '{{ regra[1] }}', '{{ regra[4] }}', '{{ regra[6] }}', '{{ regra[3] }}', '{{ regra[2] }}', '{{ regra[11] }}', '{{ regra[5] }}')">
+                                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="excluirRegra('{{ regra[0] }}')">
+                                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="duplicarRegraCor('{{ regra[0] }}')">
+                                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="row">
+                <!-- Gráficos -->
+                <div class="col-md-12">
+                    <h4 class="mt-4">Gráficos</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>SQL</th>
+                                <th>Nº Apresentação</th>
+                                <th>Tipo</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <button class="btn btn-info" id="novoGraficoBtn" data-toggle="modal"
+                            data-target="#addGraficoModal"
+                            style="margin-left: 73.5%;  background: linear-gradient(45deg, #0a2f57, #00c6ff);">
+                            + Novo Gráfico
+                        </button>
+                        <tbody>
+                            {% for grafico in graficos %}
+                            <tr id="grafico-row-{{ grafico[0] }}">
+                                <td>{{ grafico[1] }}</td>
+                                <td>{{ grafico[2] }}</td>
+                                <td>{{ grafico[3] }}</td>
+                                <td>{{ grafico[4] }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="abrirModalEditarGrafico('{{ grafico[0] | e }}', '{{ grafico[1] | e }}', '{{ grafico[2] | e }}', '{{ grafico[3] | e }}', '{{ grafico[4] | e }}')">
+                                        <i class="fas fa-pencil-alt" style="color: rgb(1, 145, 212)"
+                                            title="Editar Gráfico"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="excluirGrafico('{{ grafico[0] }}')">
+                                        <i class="fas fa-trash-alt" style="color: rgb(187, 1, 1)"
+                                            title="Excluir Gráfico"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-none"
+                                        onclick="duplicarGrafico('{{ grafico[0] }}')">
+                                        <i class="fas fa-copy" style="color: rgb(156, 212, 1)"
+                                            title="Duplicar Gráfico"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-
     </div>
-
     <!----------------------------------- Modais para Adicionar Itens ------------------------------------>
     <!-- Modal para adicionar coluna -->
     <div class="modal fade" id="addColumnModal" tabindex="-1" role="dialog" aria-labelledby="addColumnModalLabel"
@@ -906,6 +1196,34 @@
                                 name="escondido_coluna">
                             <label class="form-check-label" for="escondido_coluna">Escondido</label>
                         </div>
+                        <div class="form-group">
+                            <label for="fonte_coluna">Tamanho da Fonte</label>
+                            <input type="number" class="form-control" id="fonte_coluna" name="fonte_coluna" min="10"
+                                max="50" value="14">
+                        </div>
+                        <div class="form-group">
+                            <label for="cor_texto_coluna">Cor do Texto</label>
+                            <input type="color" class="form-control" id="cor_texto_coluna" name="cor_texto_coluna"
+                                value="#000000">
+                        </div>
+                        <div class="form-group">
+                            <label for="alinhamento_coluna">Alinhamento do Texto</label>
+                            <select class="form-control" id="alinhamento_coluna" name="alinhamento_coluna">
+                                <option value="left">Esquerda</option>
+                                <option value="center">Centro</option>
+                                <option value="right">Direita</option>
+                                <option value="justify">Justificado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="font_bold">Negrito</label>
+                            <input type="checkbox" id="font_bold" name="font_bold" value="Y">
+                        </div>
+                        <div class="form-group">
+                            <label for="font_italic">Itálico</label>
+                            <input type="checkbox" id="font_italic" name="font_italic" value="Y">
+                        </div>
+
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
@@ -957,6 +1275,35 @@
                             <input type="checkbox" class="form-check-input" id="escondido_coluna_edit"
                                 name="escondido_coluna">
                             <label class="form-check-label" for="escondido_coluna">Escondido</label>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_fonte_coluna">Tamanho da Fonte</label>
+                            <input type="number" class="form-control" id="edit_fonte_coluna" name="fonte_coluna" min="10"
+                                max="50" value="14">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_cor_texto_coluna">Cor do Texto</label>
+                            <input type="color" class="form-control" id="edit_cor_texto_coluna" name="cor_texto_coluna"
+                                value="#000000">
+                        </div>
+                        <div class="form-group">
+                            <label for="edit_alinhamento_coluna">Alinhamento do Texto</label>
+                            <select class="form-control" id="edit_alinhamento_coluna" name="alinhamento_coluna">
+                                <option value="left">Esquerda</option>
+                                <option value="center">Centro</option>
+                                <option value="right">Direita</option>
+                                <option value="justify">Justificado</option>
+                            </select>
+                        </div>
+                        <!-- Bold -->
+                        <div class="form-group">
+                            <label for="edit_font_bold">Negrito</label>
+                            <input type="checkbox" id="edit_font_bold" name="font_bold" value="Y">
+                        </div>
+                        <!-- Italic -->
+                        <div class="form-group">
+                            <label for="edit_font_italic">Itálico</label>
+                            <input type="checkbox" id="edit_font_italic" name="font_italic" value="Y">
                         </div>
                     </div>
 
@@ -1037,6 +1384,58 @@
                         <div class="form-group">
                             <label for="cor_dashboard">Cor do Dashboard</label>
                             <input type="color" class="form-control" id="cor_dashboard_edit" name="cor_dashboard">
+                        </div>
+                        <div class="form-group">
+                            <label for="fonte_dashboard">Tamanho da Fonte</label>
+                            <input type="number" class="form-control" id="fonte_dashboard" name="fonte_dashboard" min="10" max="50" value="14">
+                        </div>
+                        <div class="form-group">
+                            <label for="ds_cor_texto">Cor do Texto</label>
+                            <input type="color" class="form-control" id="ds_cor_texto" name="ds_cor_texto" value="#000000">
+                        </div>
+                        <div class="form-group">
+                            <label for="ds_alinhamento">Alinhamento do Texto</label>
+                            <select class="form-control" id="ds_alinhamento" name="ds_alinhamento">
+                                <option value="left">Esquerda</option>
+                                <option value="center" selected>Centro</option>
+                                <option value="right">Direita</option>
+                                <option value="justify">Justificado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="font_bold">Negrito</label>
+                            <input type="checkbox" id="font_bold" name="font_bold" value="Y">
+                        </div>
+                        <div class="form-group">
+                            <label for="font_italic">Itálico</label>
+                            <input type="checkbox" id="font_italic" name="font_italic" value="Y">
+                        </div>
+                        
+                        <!-- Inside editDashboardModal -->
+                        <div class="form-group">
+                            <label for="fonte_dashboard_edit">Tamanho da Fonte</label>
+                            <input type="number" class="form-control" id="fonte_dashboard_edit" name="fonte_dashboard" min="10" max="50" value="14">
+                        </div>
+                        <div class="form-group">
+                            <label for="ds_cor_texto_edit">Cor do Texto</label>
+                            <input type="color" class="form-control" id="ds_cor_texto_edit" name="ds_cor_texto" value="#000000">
+                        </div>
+                        <div class="form-group">
+                            <label for="ds_alinhamento_edit">Alinhamento do Texto</label>
+                            <select class="form-control" id="ds_alinhamento_edit" name="ds_alinhamento">
+                                <option value="left">Esquerda</option>
+                                <option value="center" selected>Centro</option>
+                                <option value="right">Direita</option>
+                                <option value="justify">Justificado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="font_bold_edit">Negrito</label>
+                            <input type="checkbox" id="font_bold_edit" name="font_bold" value="Y">
+                        </div>
+                        <div class="form-group">
+                            <label for="font_italic_edit">Itálico</label>
+                            <input type="checkbox" id="font_italic_edit" name="font_italic" value="Y">
                         </div>
 
                     </div>
@@ -1269,6 +1668,106 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico Modal -->
+    <div class="modal fade" id="addGraficoModal" tabindex="-1" role="dialog" aria-labelledby="addGraficoModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addGraficoModalLabel">Adicionar Gráfico</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="addGraficoForm" method="POST" action="/adicionar_grafico/{{ painel_id }}">
+                    <div class="modal-body">
+
+                        <div class="form-group">
+                            <label for="titulo_grafico">Título</label>
+                            <input type="text" class="form-control" id="titulo_grafico" name="titulo_grafico" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="sql_grafico">SQL</label>
+                            <textarea class="form-control" id="sql_grafico" name="sql_grafico" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="numero_apre_grafico">Nº Apresentação</label>
+                            <input type="number" class="form-control" id="numero_apre_grafico"
+                                name="numero_apre_grafico" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipo_grafico">Tipo</label>
+                            <select class="form-control" id="tipo_grafico" name="tipo_grafico" required>
+                                <option value="pizza">Pizza</option>
+                                <option value="barra">Barras Verticais</option>
+                                <option value="linha">Linha</option>
+                                <option value="barras_horizontais">Barras Horizontais</option>
+                                <option value="dispersao">Dispersão</option>
+                                <option value="area">Área</option>
+                                <option value="card">Card</option>
+                                <option value="rosca">Rosca</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+                        <button type="submit" id="saveGraficoButton" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Gráfico Edit Modal -->
+    <div class="modal fade" id="editGraficoModal" tabindex="-1" role="dialog" aria-labelledby="editGraficoModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editGraficoModalLabel">Editar Gráfico</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fechar">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="editGraficoForm" action="/editar_grafico/{{ painel_id }}" method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" id="grafico_id_edit" name="grafico_id_edit">
+                        <div class="form-group">
+                            <label for="titulo_grafico_edit">Título</label>
+                            <input type="text" class="form-control" id="titulo_grafico_edit" name="titulo_grafico_edit"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="sql_grafico_edit">SQL</label>
+                            <textarea class="form-control" id="sql_grafico_edit" name="sql_grafico_edit"
+                                required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="numero_apre_grafico_edit">Nº Apresentação</label>
+                            <input type="number" class="form-control" id="numero_apre_grafico_edit"
+                                name="numero_apre_grafico_edit" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipo_grafico_edit">Tipo</label>
+                            <select class="form-control" id="tipo_grafico" name="tipo_grafico" required>
+                                <option value="pizza">Pizza</option>
+                                <option value="barra">Barras Verticais</option>
+                                <option value="linha">Linha</option>
+                                <option value="barras_horizontais">Barras Horizontais</option>
+                                <option value="dispersao">Dispersão</option>
+                                <option value="area">Área</option>
+                                <option value="card">Card</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+                        <button type="submit" id="saveGraficoEditButton" class="btn btn-primary">Salvar</button>
                     </div>
                 </form>
             </div>

@@ -15,7 +15,8 @@ $(document).ready(function () {
 
     
 
-    
+
+
 
 
     /******************************************Inicio Painel **********************************/
@@ -333,51 +334,51 @@ function duplicarDashboard(dashboard_id) {
 
 //cadastrar regra
 document.getElementById('addRuleForm').addEventListener('submit', function (event) {
-   event.preventDefault(); // Impede o envio padrão do formulário
+    event.preventDefault(); // Impede o envio padrão do formulário
 
-const formData = {
-    valor_regra: document.getElementById('valor_regra').value,
-    icone_regra: document.getElementById('icone_regra').value,
-    classe_regra: document.getElementById('classe_regra').value,
-    substituicao_regra: document.getElementById('substituicao_regra').checked ? 'S' : 'N',
-    cor_regra: document.getElementById('cor_regra').value,
-    coluna_regra: document.getElementById('coluna_regra').value,
-    celula_linha_regra: document.getElementById('celula_linha_regra').value,
-       painel_id: document.getElementById('painel_id').value // Inclua o painel_id
-};
+    const formData = {
+        valor_regra: document.getElementById('valor_regra').value,
+        icone_regra: document.getElementById('icone_regra').value,
+        classe_regra: document.getElementById('classe_regra').value,
+        substituicao_regra: document.getElementById('substituicao_regra').checked ? 'S' : 'N',
+        cor_regra: document.getElementById('cor_regra').value,
+        coluna_regra: document.getElementById('coluna_regra').value,
+        celula_linha_regra: document.getElementById('celula_linha_regra').value,
+        painel_id: document.getElementById('painel_id').value // Inclua o painel_id
+    };
 
-fetch('/cadastrar_regra_cor', {
-    method: "POST",
-    headers: {
-           'Content-Type': 'application/json' // Cabeçalho correto
-    },
-       body: JSON.stringify(formData) // Dados enviados como JSON
-})
-.then(response => {
-    if (!response.ok) {
-        throw new Error('Network response was not ok');
-    }
-    return response.json();
-    
-})
-.then(data => {
-    if (data.success) {
-           // Fecha o modal
-        $('#modalCadastrarRegra').modal('hide');
+    fetch('/cadastrar_regra_cor', {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json' // Cabeçalho correto
+        },
+        body: JSON.stringify(formData) // Dados enviados como JSON
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
 
-           // Atualiza a lista de regras
-        atualizarListaRegras();
+        })
+        .then(data => {
+            if (data.success) {
+                // Fecha o modal
+                $('#modalCadastrarRegra').modal('hide');
 
-           // Exibe uma mensagem de sucesso, se necessário
-        console.log(data.message);
-        
-    } else {
-           alert(data.message); // Mostra a mensagem de erro
-    }
-})
-.catch(error => {
-    console.error('There was a problem with the fetch operation:', error);
-});
+                // Atualiza a lista de regras
+                atualizarListaRegras();
+
+                // Exibe uma mensagem de sucesso, se necessário
+                console.log(data.message);
+
+            } else {
+                alert(data.message); // Mostra a mensagem de erro
+            }
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation:', error);
+        });
 });
 
 
